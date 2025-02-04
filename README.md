@@ -1,2 +1,2 @@
 # GameChallengeTools-py
-Python version on https://github.com/Iannyck/GameChallengeTools
+Python version of https://github.com/Iannyck/GameChallengeTools
