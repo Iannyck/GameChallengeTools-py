@@ -1,0 +1,284 @@
+{
+    "dynamic": {
+        "enemies": [
+            {
+                "height": 24, 
+                "type": "lakitu", 
+                "width": 16, 
+                "x": 33, 
+                "y": 528
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 114, 
+                "y": 1864
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 114, 
+                "y": 2120
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 130, 
+                "y": 344
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 146, 
+                "y": 2616
+            }, 
+            {
+                "height": 15, 
+                "type": "turtle_spike", 
+                "width": 16, 
+                "x": 186, 
+                "y": 438
+            }
+        ], 
+        "platform": {
+            "balanced": [], 
+            "moving": []
+        }
+    }, 
+    "levelCols": 3816, 
+    "levelRows": 224, 
+    "static": {
+        "end": {
+            "height": 152, 
+            "width": 8, 
+            "x": 31, 
+            "y": 3604
+        }, 
+        "magicBean": {
+            "height": 0, 
+            "width": 0, 
+            "x": 0, 
+            "x_exit": 0, 
+            "y": 0, 
+            "y_exit": 0
+        }, 
+        "pipes": [
+            {
+                "go_id": -2, 
+                "height": 64, 
+                "id": -1, 
+                "inside": true, 
+                "width": 32, 
+                "x": 136, 
+                "y": 2112
+            }, 
+            {
+                "go_id": -2, 
+                "height": 32, 
+                "id": -1, 
+                "inside": false, 
+                "width": 32, 
+                "x": 168, 
+                "y": 2608
+            }
+        ], 
+        "positionCollision": [
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 72, 
+                "y": 400
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 72, 
+                "y": 1024
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 72, 
+                "y": 1056
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 72, 
+                "y": 1472
+            }, 
+            {
+                "height": 16, 
+                "width": 64, 
+                "x": 72, 
+                "y": 2368
+            }, 
+            {
+                "height": 16, 
+                "width": 32, 
+                "x": 72, 
+                "y": 3440
+            }, 
+            {
+                "height": 16, 
+                "width": 48, 
+                "x": 88, 
+                "y": 3424
+            }, 
+            {
+                "height": 16, 
+                "width": 64, 
+                "x": 104, 
+                "y": 3408
+            }, 
+            {
+                "height": 16, 
+                "width": 80, 
+                "x": 120, 
+                "y": 3392
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 400
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 1024
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 1056
+            }, 
+            {
+                "height": 16, 
+                "width": 64, 
+                "x": 136, 
+                "y": 1440
+            }, 
+            {
+                "height": 64, 
+                "width": 32, 
+                "x": 136, 
+                "y": 1856
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 136, 
+                "y": 2336
+            }, 
+            {
+                "height": 16, 
+                "width": 96, 
+                "x": 136, 
+                "y": 3376
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 3520
+            }, 
+            {
+                "height": 48, 
+                "width": 32, 
+                "x": 152, 
+                "y": 336
+            }, 
+            {
+                "height": 48, 
+                "width": 16, 
+                "x": 152, 
+                "y": 1648
+            }, 
+            {
+                "height": 48, 
+                "width": 16, 
+                "x": 152, 
+                "y": 3024
+            }, 
+            {
+                "height": 16, 
+                "width": 112, 
+                "x": 152, 
+                "y": 3360
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 168, 
+                "y": 3344
+            }, 
+            {
+                "height": 16, 
+                "width": 144, 
+                "x": 184, 
+                "y": 3328
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 184, 
+                "y": 3600
+            }, 
+            {
+                "height": 16, 
+                "width": 512, 
+                "x": 200, 
+                "y": 0
+            }, 
+            {
+                "height": 16, 
+                "width": 704, 
+                "x": 200, 
+                "y": 544
+            }, 
+            {
+                "height": 16, 
+                "width": 1072, 
+                "x": 200, 
+                "y": 1312
+            }, 
+            {
+                "height": 16, 
+                "width": 368, 
+                "x": 200, 
+                "y": 2416
+            }, 
+            {
+                "height": 16, 
+                "width": 48, 
+                "x": 200, 
+                "y": 2832
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 200, 
+                "y": 2912
+            }, 
+            {
+                "height": 16, 
+                "width": 736, 
+                "x": 200, 
+                "y": 3072
+            }
+        ], 
+        "spawn": {
+            "height": 16, 
+            "width": 12, 
+            "x": 185, 
+            "y": 42
+        }
+    }
+}

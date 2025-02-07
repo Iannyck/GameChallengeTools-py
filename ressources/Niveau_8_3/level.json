@@ -1,0 +1,297 @@
+{
+    "dynamic": {
+        "enemies": [
+            {
+                "height": 23, 
+                "type": "koopa", 
+                "width": 16, 
+                "x": 178, 
+                "y": 2180
+            }, 
+            {
+                "height": 24, 
+                "type": "flying_koopa", 
+                "width": 16, 
+                "x": 156, 
+                "y": 1451
+            }, 
+            {
+                "height": 24, 
+                "type": "flying_koopa", 
+                "width": 16, 
+                "x": 165, 
+                "y": 444
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 113, 
+                "y": 1020
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 155, 
+                "y": 2553
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 173, 
+                "y": 1048
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 176, 
+                "y": 2827
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 176, 
+                "y": 2964
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 15, 
+                "x": 177, 
+                "y": 1887
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 114, 
+                "y": 856
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 114, 
+                "y": 2024
+            }, 
+            {
+                "height": 22, 
+                "type": "piranha_plant", 
+                "width": 16, 
+                "x": 130, 
+                "y": 2696
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 16, 
+                "x": 113, 
+                "y": 1916
+            }, 
+            {
+                "height": 24, 
+                "type": "hammer_bro", 
+                "width": 16, 
+                "x": 177, 
+                "y": 2324
+            }
+        ], 
+        "platform": {
+            "balanced": [], 
+            "moving": []
+        }
+    }, 
+    "levelCols": 3672, 
+    "levelRows": 224, 
+    "static": {
+        "end": {
+            "height": 152, 
+            "width": 8, 
+            "x": 31, 
+            "y": 3428
+        }, 
+        "magicBean": {
+            "height": 0, 
+            "width": 0, 
+            "x": 0, 
+            "x_exit": 0, 
+            "y": 0, 
+            "y_exit": 0
+        }, 
+        "pipes": [], 
+        "positionCollision": [
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 72, 
+                "y": 960
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 72, 
+                "y": 1840
+            }, 
+            {
+                "height": 16, 
+                "width": 32, 
+                "x": 72, 
+                "y": 3264
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 104, 
+                "y": 3232
+            }, 
+            {
+                "height": 64, 
+                "width": 32, 
+                "x": 136, 
+                "y": 848
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 136, 
+                "y": 960
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 1136
+            }, 
+            {
+                "height": 64, 
+                "width": 32, 
+                "x": 136, 
+                "y": 1744
+            }, 
+            {
+                "height": 16, 
+                "width": 128, 
+                "x": 136, 
+                "y": 1840
+            }, 
+            {
+                "height": 80, 
+                "width": 32, 
+                "x": 136, 
+                "y": 2016
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 3040
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 136, 
+                "y": 3200
+            }, 
+            {
+                "height": 48, 
+                "width": 16, 
+                "x": 152, 
+                "y": 544
+            }, 
+            {
+                "height": 16, 
+                "width": 32, 
+                "x": 152, 
+                "y": 1136
+            }, 
+            {
+                "height": 48, 
+                "width": 16, 
+                "x": 152, 
+                "y": 1520
+            }, 
+            {
+                "height": 48, 
+                "width": 32, 
+                "x": 152, 
+                "y": 2688
+            }, 
+            {
+                "height": 32, 
+                "width": 16, 
+                "x": 168, 
+                "y": 288
+            }, 
+            {
+                "height": 16, 
+                "width": 48, 
+                "x": 168, 
+                "y": 1136
+            }, 
+            {
+                "height": 32, 
+                "width": 16, 
+                "x": 168, 
+                "y": 1376
+            }, 
+            {
+                "height": 32, 
+                "width": 16, 
+                "x": 168, 
+                "y": 3120
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 168, 
+                "y": 3168
+            }, 
+            {
+                "height": 32, 
+                "width": 64, 
+                "x": 184, 
+                "y": 1136
+            }, 
+            {
+                "height": 16, 
+                "width": 16, 
+                "x": 184, 
+                "y": 3424
+            }, 
+            {
+                "height": 16, 
+                "width": 1104, 
+                "x": 200, 
+                "y": 0
+            }, 
+            {
+                "height": 16, 
+                "width": 752, 
+                "x": 200, 
+                "y": 1232
+            }, 
+            {
+                "height": 16, 
+                "width": 1072, 
+                "x": 200, 
+                "y": 2080
+            }, 
+            {
+                "height": 16, 
+                "width": 336, 
+                "x": 200, 
+                "y": 3328
+            }
+        ], 
+        "spawn": {
+            "height": 16, 
+            "width": 12, 
+            "x": 185, 
+            "y": 42
+        }
+    }
+}
