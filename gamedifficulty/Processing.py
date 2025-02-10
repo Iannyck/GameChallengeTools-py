@@ -23,6 +23,6 @@ def CreatePlatformTextureFromMask(mask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     :param mask: a boolean texture, the mask to create the texture from
     :return: unsigned int 8 texture (grayscale)
     """
-    kernel = np.array([[1], [-1]])
+    kernel = np.array([[-1], [1]])
 
     return cv.filter2D(mask, -1, kernel)
