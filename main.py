@@ -8,22 +8,15 @@ level = "Niveau_1_1"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # Load the sprite set (ground, enemies, etc)
-spriteSet = SpriteSet("ressources/Sprite")
-
-# Select an enemy to detect
-enemy = EnemyType.KOOPA
+spriteSet = Classes.SpriteSet("ressources/Sprite")
 
 # Detect the positions of the enemies in the level image
-patternPositions = DetectPatternMulti(levelImage, spriteSet.GetEnemiesTextures()[enemy], 0.8)
+positions = Detection.DetectPatternMulti(levelImage, spriteSet.GetCollisionsTextures(), 0.85)
+positions += Detection.DetectPatternMulti(levelImage, spriteSet.GetPipesTextures(), 0.85)
 
-# Create image of same size as levelImage, full black
-modifiedImage = np.copy(levelImage)
+mask = Processing.CreateMaskFromPatternResult(positions, levelImage.shape[:2])
 
-(enemySizeX, enemySizeY) = GetEnnemySize(enemy)
+platformTexture = Processing.CreatePlatformTextureFromMask(mask)
 
-# Mark enemies on the image
-for (x, y) in patternPositions:
-    modifiedImage[y:y+enemySizeY, x:x+enemySizeX] = [0, 0, 255]
-
-cv.imshow("Analysed level", modifiedImage)
+cv.imshow("Analysed level", platformTexture * 255)
 cv.waitKey(0)

@@ -1,10 +1,9 @@
-from gamedifficulty.types import EnemyType
-from gamedifficulty.helpers import LoadTexturesInFolder
+from gamedifficulty.Types import EnemyType
+from gamedifficulty.Helpers import LoadTexturesInFolder
 
 import cv2 as cv
 from os import listdir
 from os.path import join, isfile
-
 
 class Enemy:
     x = 0

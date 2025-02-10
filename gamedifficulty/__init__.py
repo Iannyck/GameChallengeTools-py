@@ -1,5 +1,5 @@
-from gamedifficulty.classes import *
-from gamedifficulty.detection import *
-from gamedifficulty.helpers import *
-from gamedifficulty.types import *
-
+import gamedifficulty.Classes
+import gamedifficulty.Detection
+import gamedifficulty.Helpers
+import gamedifficulty.Types
+import gamedifficulty.Processing
