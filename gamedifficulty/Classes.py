@@ -86,6 +86,9 @@ class SpriteSet:
         self.pipesTextures = []
         self.platformsTextures = []
         self.spawnTextures = []
+        self.jumpUpTexture = None
+        self.jumpDownTexture = None
+        self.jumpShapeTexture = None
 
         self.Load()
 
@@ -96,6 +99,9 @@ class SpriteSet:
         self.pipesTextures = LoadTexturesInFolder(f"{self.path}/Pipes")
         self.platformsTextures = LoadTexturesInFolder(f"{self.path}/Platforms")
         self.spawnTextures = LoadTexturesInFolder(f"{self.path}/Spawn")
+        self.jumpUpTexture = (cv.imread(f"{self.path}/jump_up.png", cv.IMREAD_GRAYSCALE) / 255).astype('uint8')
+        self.jumpDownTextures = (cv.imread(f"{self.path}/jump_down.png", cv.IMREAD_GRAYSCALE) / 255).astype('uint8')
+        self.jumpShapeTexture = (cv.imread(f"{self.path}/jump_shape.png", cv.IMREAD_GRAYSCALE) / 255).astype('uint8')
 
         # Todo : maybe change they way sprites are organized in the folders ?
         for enemy in EnemyType:
@@ -135,3 +141,12 @@ class SpriteSet:
 
     def GetSpawnTextures(self) -> list:
         return self.spawnTextures
+
+    def GetJumpUpTexture(self) -> cv.Mat:
+        return self.jumpUpTexture
+
+    def GetJumpDownTexture(self) -> cv.Mat:
+        return self.jumpDownTextures
+
+    def GetJumpShapeTexture(self) -> cv.Mat:
+        return self.jumpShapeTexture

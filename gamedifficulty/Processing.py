@@ -26,3 +26,10 @@ def CreatePlatformTextureFromMask(mask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     kernel = np.array([[-1], [1]])
 
     return cv.filter2D(mask, -1, kernel)
+
+def CreateReachFromPlatformTexture(platformTexture: cv.Mat[cv.CV_8U], jumpShape: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    # Create a texture of same dim
+    result = np.zeros(platformTexture.shape, dtype=np.uint8)
+
+
+    return result
