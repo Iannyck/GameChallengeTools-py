@@ -3,3 +3,4 @@ import gamedifficulty.Detection
 import gamedifficulty.Helpers
 import gamedifficulty.Types
 import gamedifficulty.Processing
+import gamedifficulty.Constants

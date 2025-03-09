@@ -10,3 +10,6 @@ def LoadTexturesInFolder(path: str) -> list[cv.Mat]:
 
 def BooleanMaskAsGrayscale(mask: cv.Mat) -> cv.Mat:
     return mask.astype(np.uint8) * 255
+
+def CoordsInImage(coords: (int, int), image : cv.Mat) -> bool:
+    return 0 <= coords[0] < image.shape[0] and 0 <= coords[1] < image.shape[1]

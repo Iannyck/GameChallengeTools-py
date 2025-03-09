@@ -9,7 +9,7 @@ def DetectPattern(image: cv.Mat, pattern: cv.Mat, threshold=0.8, debugShowMatchR
     :param pattern: the pattern to match
     :param threshold: minimum value of similarity to the pattern to consider a match
     :param debugShowMatchResult: DEBUG show the matchTemplate result
-    :return: a list of (int, int) representing the (x,y) positions of the matches
+    :return: a list of (int, int, int, int) representing the (y,x, sizeY, sizeX) positions of the matches
     """
     result = cv.matchTemplate(image, pattern, cv.TM_CCOEFF_NORMED)
     if debugShowMatchResult:
