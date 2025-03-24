@@ -130,6 +130,9 @@ class SpriteSet:
         """
         return self.enemiesTextures
 
+    def GetEnemyTextures(self, enemyType: EnemyType) -> list:
+        return self.enemiesTextures[enemyType]
+
     def GetMagicBeanTextures(self) -> list:
         return self.magicBeanTextures
 
