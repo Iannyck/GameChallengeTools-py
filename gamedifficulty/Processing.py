@@ -65,12 +65,44 @@ def CreateStaticDanger(collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
 
 
 def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    if ennemyType == EnemyType.GOOMBA:
+        return CreateGoombaDisplacementTexture(detections, collisionMask)
 
+    return np.zeros(collisionMask.shape, dtype=np.uint8)
+
+def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     result = np.zeros(collisionMask.shape, dtype=np.uint8)
 
-    # detection is y, x, ennemy size y, ennemy size x
+    cv.namedWindow("Window", cv.WINDOW_AUTOSIZE)
     for (y, x, sizeY, sizeX) in detections:
+        print("Goomba at", y, x)
 
+        result[y:y + sizeY, x:x + sizeX] = 1
+
+        direction = -1
+
+        iter = 0
+        maxIter = 1000
+        while True and iter < maxIter:
+            iter += 1
+
+            for i in range(0, int(np.abs(gravity))):
+                print(i)
+                if y < 0 or y + sizeY >= collisionMask.shape[0] or not collisionMask[y + sizeY, x:x + sizeX].any():
+                    y -= 1 * int(np.sign(gravity))
+                else:
+                    break
+
+            if collisionMask[y:y+sizeY - 1, x if direction == -1 else x + sizeX].any():
+                direction = 1 if direction == -1 else -1
+
+            x += direction
+
+            result[y:y + sizeY, x:x + sizeX] = 1
+
+            # if any of the pixels outside of image break
+            if y < 0 or y + sizeY >= collisionMask.shape[0] or x < 0 or x + sizeX >= collisionMask.shape[1]:
+                break
 
     return result
 

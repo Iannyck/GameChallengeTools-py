@@ -20,18 +20,18 @@ positions += GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetPipesTextu
 mask = GD.Processing.CreateMaskFromPatternResult(positions, levelImage.shape[:2])
 
 cv.imshow("Mask", mask * 255)
-cv.waitKey(0)
+# cv.waitKey(0)
 
 staticDanger = GD.Processing.CreateStaticDanger(mask)
 
 cv.imshow("Static Danger", staticDanger * 255)
-cv.waitKey(0)
+# cv.waitKey(0)
 
 goombaPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(GD.Types.EnemyType.GOOMBA), 0.85)
 goombaDanger = GD.Processing.CreateDisplacementTexture(GD.Types.EnemyType.GOOMBA, goombaPositions, mask)
 
 cv.imshow("Goomba Danger", goombaDanger * 255)
-cv.waitKey(0)
+# cv.waitKey(0)
 
 enemyImage = GD.Processing.CreateMaskFromPatternResult(goombaPositions, levelImage.shape[:2])
 
