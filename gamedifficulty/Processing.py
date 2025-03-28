@@ -75,8 +75,6 @@ def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], coll
 
     cv.namedWindow("Window", cv.WINDOW_AUTOSIZE)
     for (y, x, sizeY, sizeX) in detections:
-        print("Goomba at", y, x)
-
         result[y:y + sizeY, x:x + sizeX] = 1
 
         direction = -1
@@ -87,7 +85,6 @@ def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], coll
             iter += 1
 
             for i in range(0, int(np.abs(gravity))):
-                print(i)
                 if y < 0 or y + sizeY >= collisionMask.shape[0] or not collisionMask[y + sizeY, x:x + sizeX].any():
                     y -= 1 * int(np.sign(gravity))
                 else:
@@ -123,4 +120,15 @@ def CreateReachTextureFromPatternResult(shape: (int, int), detections: list[(int
 
 
 def CalculateDifficulty(pheromones: cv.Mat[cv.CV_8U], reach: cv.Mat[cv.CV_8U], windowSize: int) -> np.array(np.float32):
-    pass
+    assert pheromones.shape == reach.shape
+
+    result = []
+
+    for x in range(0, pheromones.shape[1] - windowSize):
+        reachable = reach[:, x:x + windowSize] > 0
+        dangerous = pheromones[:, x:x + windowSize] > 0
+        count = np.sum(np.logical_and(reachable, dangerous))
+        value = count / float(np.sum(reachable))
+        result += [value]
+
+    return result
