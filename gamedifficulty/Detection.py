@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 
-def DetectPattern(image: cv.Mat, pattern: cv.Mat, threshold=0.8, debugShowMatchResult=False) -> list[(int, int, int, int)]:
+def DetectPattern(image: cv.Mat, pattern: cv.Mat, threshold=0.8) -> list[(int, int, int, int)]:
     """
     Returns a list of locations matching the pattern to a certain threshold
     :param image: the image to analyse
@@ -12,9 +12,6 @@ def DetectPattern(image: cv.Mat, pattern: cv.Mat, threshold=0.8, debugShowMatchR
     :return: a list of (int, int, int, int) representing the (y,x, sizeY, sizeX) positions of the matches
     """
     result = cv.matchTemplate(image, pattern, cv.TM_CCOEFF_NORMED)
-    if debugShowMatchResult:
-        cv.imshow("Match result", result)
-        cv.waitKey(0)
 
     locations = np.argwhere(result > threshold)
     (imSizeY, imSizeX) = pattern.shape[:2]
