@@ -5,6 +5,7 @@ import cv2 as cv
 from os import listdir
 from os.path import join, isfile
 
+
 class Enemy:
     x = 0
     y = 0
@@ -98,6 +99,14 @@ class SpriteSet:
         self.magicBeanTextures = LoadTexturesInFolder(f"{self.path}/MagicBean")
         self.pipesTextures = LoadTexturesInFolder(f"{self.path}/Pipes")
         self.platformsTextures = LoadTexturesInFolder(f"{self.path}/Platforms")
+        self.balancePointsLeft = [
+            cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_left.png", cv.IMREAD_COLOR),
+            cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_left_2.png", cv.IMREAD_COLOR)
+        ]
+        self.balancePointsRight = [
+            cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_right.png", cv.IMREAD_COLOR),
+            cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_right_2.png", cv.IMREAD_COLOR)
+        ]
         self.spawnTextures = LoadTexturesInFolder(f"{self.path}/Spawn")
         self.jumpUpTexture = (cv.imread(f"{self.path}/jump_up.png", cv.IMREAD_GRAYSCALE) / 255).astype('uint8')
         self.jumpDownTextures = (cv.imread(f"{self.path}/jump_down.png", cv.IMREAD_GRAYSCALE) / 255).astype('uint8')
@@ -141,6 +150,12 @@ class SpriteSet:
 
     def GetPlatformsTextures(self) -> list:
         return self.platformsTextures
+
+    def GetBalancePointsLeft(self) -> list:
+        return self.balancePointsLeft
+
+    def GetBalancePointsRight(self) -> list:
+        return self.balancePointsRight
 
     def GetSpawnTextures(self) -> list:
         return self.spawnTextures

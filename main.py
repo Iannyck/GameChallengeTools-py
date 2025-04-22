@@ -11,10 +11,11 @@ import matplotlib.pyplot as plt
 # function CalculateDifficulty
 
 # Load the level image
+# level = "Niveau_6_3"
 level = "Niveau_1_1"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
-cv.imshow("Level", levelImage)
+# cv.imshow("Level", levelImage)
 
 # Load the sprite set (ground, enemies, etc)
 spriteSet = GD.Classes.SpriteSet("ressources/Sprite")
@@ -23,23 +24,33 @@ spriteSet = GD.Classes.SpriteSet("ressources/Sprite")
 collisionPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetCollisionsTextures(), 0.85)
 collisionPositions += GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetPipesTextures(), 0.85)
 
+# moving platforms must be processed a bit differently.
+passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.GetPlatformsTextures(), spriteSet.GetBalancePointsLeft(), spriteSet.GetBalancePointsRight())
+
 # Transform all positions into an image mask
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
 # Mark all pixels mario can (theoretically) reach
-reach = GD.Processing.CreateReachTextureFromPatternResult(levelImage.shape[:2], collisionPositions, int(GD.Constants.jumpHeight))
+reach = GD.Processing.CreateReachTextureFromPatternResult(levelImage.shape[:2], collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight))
 
 # Create static danger map (holes)
-staticDanger = GD.Processing.CreateStaticDanger(collisionMask)
+danger = GD.Processing.CreateStaticDanger(collisionMask)
 
-# Create goomba danger map
-# Find goombas
-goombaPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(GD.Types.EnemyType.GOOMBA), 0.85)
-# Find their possible positions
-goombaDanger = GD.Processing.CreateDisplacementTexture(GD.Types.EnemyType.GOOMBA, goombaPositions, collisionMask)
+cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
 
-# merge static and goomba danger
-danger = np.maximum(goombaDanger, staticDanger)
+enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
+# Create enemy danger map
+for type in GD.Types.EnemyType.GetAllTypes():
+    # Find all enemies in the level
+    enemyPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(type), 0.85)
+    # Find their possible positions
+    ed = GD.Processing.CreateDisplacementTexture(type, enemyPositions, collisionMask)
+
+    # merge static and enemy danger
+    enemyDanger = np.maximum(ed, enemyDanger)
+
+# Merge enemy danger and static danger
+danger = np.maximum(danger, enemyDanger)
 
 difficultyCurves = []
 # Calculate difficulty for different window sizes
@@ -65,3 +76,17 @@ plt.show()
 plt.imshow(cv.cvtColor(levelImage, cv.COLOR_BGR2RGB))
 plt.axis("off")
 plt.show()
+
+# display collision as blue, danger as red, and reach as green
+demoImg = np.zeros(levelImage.shape, dtype=np.uint8)
+demoImg[:, :, 0] = collisionMask * 255
+demoImg[:, :, 1] = reach * 255
+demoImg[:, :, 2] = danger * 255
+
+# save reach image, collision image and danger image
+cv.imwrite(f"ressources/{level}/reach.png", reach * 255)
+cv.imwrite(f"ressources/{level}/collision.png", collisionMask * 255)
+cv.imwrite(f"ressources/{level}/danger.png", danger * 255)
+cv.imwrite(f"ressources/{level}/enemyDanger.png", enemyDanger * 255)
+# save demo image
+cv.imwrite(f"ressources/{level}/demo.png", demoImg)
