@@ -13,7 +13,9 @@ import time
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_1_1"
+# level = "Niveau_4_3"
+# level = "Niveau_3_3"
+level = "Niveau_1_3"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
@@ -73,6 +75,7 @@ for wsize in [16, 32, 64, 128, 160, 224, 256, 288, 304, 320]:
     plt.plot(difficultyCurve)
     plt.ylim(0, 1.2)
     # plt.title(f"Difficulty for level {level}, window size {wsize}")
+    plt.savefig(f"ressources/{level}/difficulty_{wsize}.png")
     plt.show()
 
 # Plot all difficulty curves on the same graph
