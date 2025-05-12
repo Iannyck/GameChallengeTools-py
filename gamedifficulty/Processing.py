@@ -133,7 +133,7 @@ def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], coll
 
 # Not used and not working
 def CreateRedKoopaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> \
-cv.Mat[cv.CV_8U]:
+        cv.Mat[cv.CV_8U]:
     # Essentially the same as goomba but can't fall of ledge
     result = np.zeros(collisionMask.shape, dtype=np.uint8)
 
@@ -172,7 +172,7 @@ cv.Mat[cv.CV_8U]:
 
 
 def CreatePiranaPlantDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> \
-cv.Mat[cv.CV_8U]:
+        cv.Mat[cv.CV_8U]:
     # they don't move
 
     result = np.zeros(collisionMask.shape, dtype=np.uint8)
@@ -184,7 +184,7 @@ cv.Mat[cv.CV_8U]:
 
 
 def CreateReachTextureFromPatternResult(shape: (int, int), detections: list[(int, int, int, int)], height: int) -> \
-cv.Mat[cv.CV_8U]:
+        cv.Mat[cv.CV_8U]:
     """
     Returns a mask from the detections positions. Returns 1 if the pixel is part of a detection, 0 otherwise.
     :param detections: the detections to create the mask from
@@ -229,7 +229,7 @@ def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, in
 
 
 def CreateMovingPlatform(levelImage: cv.Mat, platformImages: list[cv.Mat], balancePointsLeft: list[cv.Mat],
-                              balancePointsRight: list[cv.Mat]) -> list[(int, int, int, int)]:
+                         balancePointsRight: list[cv.Mat]) -> list[(int, int, int, int)]:
     # find balance points
     pointsLeft = DetectPatternMulti(levelImage, balancePointsLeft)
     pointsRight = DetectPatternMulti(levelImage, balancePointsRight)
@@ -278,7 +278,7 @@ def CreateMovingPlatform(levelImage: cv.Mat, platformImages: list[cv.Mat], balan
             maxHeight = max(yl, yr)
             minHeight = min(yl, yr)
 
-            for y in range(minHeight, maxHeight+1):
+            for y in range(minHeight, maxHeight + 1):
                 result.append((y, xl, hl, wl))
                 result.append((y, xr, hr, wr))
 
@@ -288,7 +288,6 @@ def CreateMovingPlatform(levelImage: cv.Mat, platformImages: list[cv.Mat], balan
             result.append(platform)
 
     return result
-
 
 
 def CalculateDifficulty(pheromones: cv.Mat[cv.CV_8U], reach: cv.Mat[cv.CV_8U], windowSize: int) -> np.array(np.float32):

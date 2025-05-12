@@ -3,6 +3,7 @@ import gamedifficulty as GD
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 # This is a demo of the algorithm presented in the paper A Comprehensive Model of Automated Evaluation of
 # Difficulty in Platformer Games. This project includes helper function to extrapolate information images and data
@@ -27,11 +28,13 @@ collisionPositions += GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetP
 # moving platforms must be processed a bit differently.
 passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.GetPlatformsTextures(), spriteSet.GetBalancePointsLeft(), spriteSet.GetBalancePointsRight())
 
-# Transform all positions into an image mask
+# Transform all collisions into an image mask
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
 # Mark all pixels mario can (theoretically) reach
 reach = GD.Processing.CreateReachTextureFromPatternResult(levelImage.shape[:2], collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight))
+
+# reach2 = cv.imread(f"ressources/{level}/reach_filled.png", cv.IMREAD_GRAYSCALE)
 
 # Create static danger map (holes)
 danger = GD.Processing.CreateStaticDanger(collisionMask)
@@ -39,7 +42,8 @@ danger = GD.Processing.CreateStaticDanger(collisionMask)
 cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
-# Create enemy danger map
+
+# Create enemy danger map for each enemy type
 for type in GD.Types.EnemyType.GetAllTypes():
     # Find all enemies in the level
     enemyPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(type), 0.85)
@@ -53,19 +57,25 @@ for type in GD.Types.EnemyType.GetAllTypes():
 danger = np.maximum(danger, enemyDanger)
 
 difficultyCurves = []
+durations = []
 # Calculate difficulty for different window sizes
 for wsize in [16, 32, 64, 128, 160, 224, 256, 288, 304, 320]:
+
+    start = time.time()
     difficultyCurve = GD.Processing.CalculateDifficulty(danger, reach, wsize)
+    end = time.time()
+    # difficultyCurve2 = GD.Processing.CalculateDifficulty(danger, reach2, wsize)
 
     difficultyCurves.append(difficultyCurve)
+    durations.append(end - start)
 
     # plot
     plt.plot(difficultyCurve)
     plt.ylim(0, 1.2)
-    plt.title(f"Difficulty for level {level}, window size {wsize}")
+    # plt.title(f"Difficulty for level {level}, window size {wsize}")
     plt.show()
 
-# Plot all difficulty curves
+# Plot all difficulty curves on the same graph
 for i, curve in enumerate(difficultyCurves):
     plt.plot(curve, label=f"Window size {i}")
 plt.legend()
@@ -73,6 +83,16 @@ plt.ylim(0, 1)
 plt.title(f"Difficulty for level {level}")
 plt.show()
 
+# Plot duration by window size
+plt.plot(durations)
+# plt.title(f"Duration for level {level}")
+plt.xlabel("Window size")
+plt.ylabel("Duration (s)")
+plt.xticks(range(len(durations)), [f"{i}" for i in [16, 32, 64, 128, 160, 224, 256, 288, 304, 320]])
+plt.ylim(0, np.max(durations) + .2)
+plt.show()
+
+# Display the level image
 plt.imshow(cv.cvtColor(levelImage, cv.COLOR_BGR2RGB))
 plt.axis("off")
 plt.show()
