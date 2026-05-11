@@ -90,6 +90,8 @@ def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int,
         return CreateGoombaDisplacementTexture(detections, collisionMask)
     if ennemyType == EnemyType.PIRANHA_PLANT:
         return CreatePiranaPlantDisplacementTexture(detections, collisionMask)
+    if ennemyType == EnemyType.BULLET_BILL:
+        return CreateBulletBillDisplacementTexture(detections, collisionMask)
 
     return np.zeros(collisionMask.shape, dtype=np.uint8)
 
@@ -170,6 +172,28 @@ cv.Mat[cv.CV_8U]:
 
     return result
 
+def CreateBulletBillDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    """
+    Bullet Bill specific implementation of CreateDisplacementTexture
+    """
+    result = np.zeros(collisionMask.shape, dtype=np.uint8)
+
+    for (y, x, sizeY, sizeX) in detections:
+        result[y:y + sizeY, x:x + sizeX] = 1
+
+        direction = -1
+        
+        currX = x
+        
+        while currX >= 0:
+            currX += direction
+
+            if currX + sizeX >= collisionMask.shape[1]:
+                break
+            
+            result[y:y + sizeY, currX:currX + sizeX] = 1
+
+    return result
 
 def CreatePiranaPlantDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> \
 cv.Mat[cv.CV_8U]:

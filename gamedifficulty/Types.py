@@ -11,7 +11,7 @@ class EnemyType(Enum):
     FLYING_FISH = "flying_fish"
     PIRANHA_PLANT = "piranha_plant" # done
     TURTLE = "turtle"
-    # BULLET_BILL = "bullet_bill"
+    BULLET_BILL = "bullet_bill"
 
     def __str__(self):
         return self.value
@@ -35,4 +35,5 @@ class EnemyType(Enum):
                 EnemyType.HAMMER_BRO,
                 EnemyType.FLYING_FISH,
                 EnemyType.PIRANHA_PLANT,
-                EnemyType.TURTLE]
+                EnemyType.TURTLE,
+                EnemyType.BULLET_BILL]
