@@ -207,6 +207,61 @@ cv.Mat[cv.CV_8U]:
     return result
 
 
+def CalculateHorizontalExpansion(jumpHeight: int, baseJumpHeight: int) -> int:
+    """
+    Calculate horizontal expansion based on jump height ratio.
+    When Mario jumps higher, he can reach further horizontally.
+    Uses physics: time_in_air ∝ sqrt(height), so distance ∝ sqrt(height)
+    :param jumpHeight: the height of the jump
+    :param baseJumpHeight: the base jump height for comparison
+    :return: horizontal expansion in pixels
+    """
+    if baseJumpHeight <= 0:
+        return 0
+    
+    # Expansion proportional to sqrt of height ratio
+    expansion_factor = np.sqrt(jumpHeight / baseJumpHeight)
+    # expansion is the additional distance compared to base jump
+    expansion = int(jumpHalfWidth * (expansion_factor - 1))
+    return expansion
+
+
+def CreateReachTextureFromPatternResults(shape: (int, int), patternGroups: list[tuple[list[(int, int, int, int)], int]], 
+                                        horizontalExpansions: list[int] = None) -> cv.Mat[cv.CV_8U]:
+    """
+    Creates a reach mask from one or more groups of platform detections.
+    Each group may use a different jump height, for example normal platforms and trampoline/jump pad platforms.
+    :param shape: the shape of the output mask
+    :param patternGroups: list of (detections, height) tuples
+    :param horizontalExpansions: optional list of horizontal expansions for each group
+    :return: the reach texture
+    """
+    result = np.zeros(shape, dtype=np.uint8)
+    
+    # If no expansions provided, use 0 for all groups
+    if horizontalExpansions is None:
+        horizontalExpansions = [0] * len(patternGroups)
+    
+    for (detections, height), expansion in zip(patternGroups, horizontalExpansions):
+        for (y, x, sizeY, sizeX) in detections:
+            # Apply vertical reach (above the platform)
+            reach_y_start = max(y - height, 0)
+            reach_y_end = y
+            
+            # Apply horizontal expansion (left and right of the platform)
+            reach_x_start = max(x - expansion, 0)
+            reach_x_end = min(x + sizeX + expansion, shape[1])
+            
+            result[reach_y_start:reach_y_end, reach_x_start:reach_x_end] = 1
+
+    # Remove the platforms themselves from reach (can't be inside them)
+    for detections, _ in patternGroups:
+        for (y, x, sizeY, sizeX) in detections:
+            result[y:y + sizeY, x:x + sizeX] = 0
+
+    return result
+
+
 def CreateReachTextureFromPatternResult(shape: (int, int), detections: list[(int, int, int, int)], height: int) -> \
 cv.Mat[cv.CV_8U]:
     """
@@ -215,15 +270,7 @@ cv.Mat[cv.CV_8U]:
     :param height: the jump height
     :return: the mask
     """
-    result = np.zeros(shape, dtype=np.uint8)
-
-    for (y, x, sizeY, sizeX) in detections:
-        result[max(y - height, 0):y, x:x + sizeX] = 1
-
-    for (y, x, sizeY, sizeX) in detections:
-        result[y:y + sizeY, x:x + sizeX] = 0
-
-    return result
+    return CreateReachTextureFromPatternResults(shape, [(detections, height)])
 
 
 def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, int, int)]:

@@ -86,6 +86,7 @@ class SpriteSet:
         self.magicBeanTextures = []
         self.pipesTextures = []
         self.platformsTextures = []
+        self.jumpBoardTextures = []
         self.spawnTextures = []
         self.jumpUpTexture = None
         self.jumpDownTexture = None
@@ -99,6 +100,7 @@ class SpriteSet:
         self.magicBeanTextures = LoadTexturesInFolder(f"{self.path}/MagicBean")
         self.pipesTextures = LoadTexturesInFolder(f"{self.path}/Pipes")
         self.platformsTextures = LoadTexturesInFolder(f"{self.path}/Platforms")
+        self.jumpBoardTextures = LoadTexturesInFolder(f"{self.path}/JumpingBoard")
         self.balancePointsLeft = [
             cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_left.png", cv.IMREAD_COLOR),
             cv.imread(f"{self.path}/Platforms/BalancePoint/balance_point_left_2.png", cv.IMREAD_COLOR)
@@ -150,6 +152,9 @@ class SpriteSet:
 
     def GetPlatformsTextures(self) -> list:
         return self.platformsTextures
+
+    def GetJumpBoardTextures(self) -> list:
+        return self.jumpBoardTextures
 
     def GetBalancePointsLeft(self) -> list:
         return self.balancePointsLeft

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_1_1"
+level = "Niveau_6_3"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
@@ -24,14 +24,30 @@ spriteSet = GD.Classes.SpriteSet("ressources/Sprite")
 collisionPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetCollisionsTextures(), 0.85)
 collisionPositions += GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetPipesTextures(), 0.85)
 
+jumpBoardPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetJumpBoardTextures(), 0.85)
+collisionPositions += jumpBoardPositions
+
 # moving platforms must be processed a bit differently.
 passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.GetPlatformsTextures(), spriteSet.GetBalancePointsLeft(), spriteSet.GetBalancePointsRight())
 
 # Transform all positions into an image mask
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
+# Calculate horizontal expansion for jumping boards (higher jump = more horizontal reach)
+jumpBoardExpansion = GD.Processing.CalculateHorizontalExpansion(
+    int(GD.Constants.jumpBoardHeight),
+    int(GD.Constants.jumpHeight)
+)
+
 # Mark all pixels mario can (theoretically) reach
-reach = GD.Processing.CreateReachTextureFromPatternResult(levelImage.shape[:2], collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight))
+reach = GD.Processing.CreateReachTextureFromPatternResults(
+    levelImage.shape[:2],
+    [
+        (collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight)),
+        (jumpBoardPositions, int(GD.Constants.jumpBoardHeight))
+    ],
+    horizontalExpansions=[0, jumpBoardExpansion]
+)
 
 # Create static danger map (holes)
 danger = GD.Processing.CreateStaticDanger(collisionMask)
@@ -63,7 +79,7 @@ for wsize in [16, 32, 64, 128, 160, 224, 256, 288, 304, 320]:
     plt.plot(difficultyCurve)
     plt.ylim(0, 1.2)
     plt.title(f"Difficulty for level {level}, window size {wsize}")
-    plt.show()
+    #plt.show()
 
 # Plot all difficulty curves
 for i, curve in enumerate(difficultyCurves):
@@ -71,11 +87,11 @@ for i, curve in enumerate(difficultyCurves):
 plt.legend()
 plt.ylim(0, 1)
 plt.title(f"Difficulty for level {level}")
-plt.show()
+#plt.show()
 
 plt.imshow(cv.cvtColor(levelImage, cv.COLOR_BGR2RGB))
 plt.axis("off")
-plt.show()
+#plt.show()
 
 # display collision as blue, danger as red, and reach as green
 demoImg = np.zeros(levelImage.shape, dtype=np.uint8)
