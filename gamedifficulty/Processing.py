@@ -180,17 +180,8 @@ def CreateBulletBillDisplacementTexture(detections: list[(int, int, int, int)], 
 
     for (y, x, sizeY, sizeX) in detections:
         result[y:y + sizeY, x:x + sizeX] = 1
-
-        direction = -1
         
-        currX = x
-        
-        while currX >= 0:
-            currX += direction
-
-            if currX + sizeX >= collisionMask.shape[1]:
-                break
-            
+        for currX in range(0, collisionMask.shape[1] - sizeX + 1):
             result[y:y + sizeY, currX:currX + sizeX] = 1
 
     return result
