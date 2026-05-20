@@ -92,6 +92,8 @@ def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int,
         return CreatePiranaPlantDisplacementTexture(detections, collisionMask)
     if ennemyType == EnemyType.BULLET_BILL:
         return CreateBulletBillDisplacementTexture(detections, collisionMask)
+    if ennemyType == EnemyType.FLYING_FISH:
+        return CreateFlyingFishDisplacementTexture(detections, collisionMask)
 
     return np.zeros(collisionMask.shape, dtype=np.uint8)
 
@@ -183,6 +185,29 @@ def CreateBulletBillDisplacementTexture(detections: list[(int, int, int, int)], 
         
         for currX in range(0, collisionMask.shape[1] - sizeX + 1):
             result[y:y + sizeY, currX:currX + sizeX] = 1
+
+    return result
+
+
+def CreateFlyingFishDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    """
+    Flying Fish specific implementation of CreateDisplacementTexture.
+    Flying fish move horizontally across the level while oscillating vertically,
+    so we mark the full horizontal span and a vertical band around the detected position.
+    """
+    result = np.zeros(collisionMask.shape, dtype=np.uint8)
+    levelWidth = collisionMask.shape[1]
+    levelHeight = collisionMask.shape[0]
+
+    for (y, x, sizeY, sizeX) in detections:
+        result[y:y + sizeY, x:x + sizeX] = 1
+
+        vertical_margin = max(1, sizeY * 2)
+        top = max(0, y - vertical_margin)
+        bottom = min(levelHeight, y + sizeY + vertical_margin)
+
+        for currX in range(0, levelWidth - sizeX + 1):
+            result[top:bottom, currX:currX + sizeX] = 1
 
     return result
 

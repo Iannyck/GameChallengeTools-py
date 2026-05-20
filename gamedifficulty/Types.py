@@ -8,7 +8,7 @@ class EnemyType(Enum):
     LAKITU = "lakitu"
     TURTLE_SPIKE = "turtle"
     HAMMER_BRO = "hammer_bro"
-    FLYING_FISH = "flying_fish"
+    FLYING_FISH = "fish_flying"
     PIRANHA_PLANT = "piranha_plant" # done
     TURTLE = "turtle"
     BULLET_BILL = "bullet_bill"
