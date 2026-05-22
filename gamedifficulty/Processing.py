@@ -88,6 +88,8 @@ def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int,
     """
     if ennemyType == EnemyType.GOOMBA or ennemyType == EnemyType.KOOPA or ennemyType == EnemyType.TURTLE:
         return CreateGoombaDisplacementTexture(detections, collisionMask)
+    if ennemyType == EnemyType.RED_KOOPA:
+        return CreateRedKoopaDisplacementTexture(detections, collisionMask)
     if ennemyType == EnemyType.PIRANHA_PLANT:
         return CreatePiranaPlantDisplacementTexture(detections, collisionMask)
     if ennemyType == EnemyType.BULLET_BILL:
@@ -135,42 +137,74 @@ def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], coll
     return result
 
 
-# Not used and not working
-def CreateRedKoopaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> \
-cv.Mat[cv.CV_8U]:
-    # Essentially the same as goomba but can't fall of ledge
+def CreateRedKoopaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    """
+    Red Koopa specific implementation of CreateDisplacementTexture.
+    Red Koopas move horizontally but do not fall off edges, they reverse when a ledge or wall is ahead.
+    """
     result = np.zeros(collisionMask.shape, dtype=np.uint8)
+    levelHeight, levelWidth = collisionMask.shape
 
     for (y, x, sizeY, sizeX) in detections:
-        result[y:y + sizeY, x:x + sizeX] = 1
-
+        current_y = y
+        current_x = x
         direction = -1
+        iteration = 0
+        max_iterations = 1000
 
-        iter = 0
-        maxIter = 1000
-        while True and iter < maxIter:
-            iter += 1
+        while iteration < max_iterations:
+            iteration += 1
 
-            for i in range(0, int(np.abs(gravity))):
-                if y < 0 or y + sizeY >= collisionMask.shape[0] or not collisionMask[y + sizeY, x:x + sizeX].any():
-                    y -= 1 * int(np.sign(gravity))
-                else:
+            if current_y < 0 or current_y + sizeY >= levelHeight or current_x < 0 or current_x + sizeX > levelWidth:
+                break
+
+            # fall until on solid ground
+            while current_y + sizeY < levelHeight and not collisionMask[current_y + sizeY, current_x:current_x + sizeX].any():
+                current_y -= int(np.sign(gravity))
+                if current_y < 0 or current_y + sizeY >= levelHeight:
                     break
 
-            # if has ground and is in frond of a ledge
-            if collisionMask[y + sizeY, x:x + sizeX].any() and not (
-                    collisionMask[y + sizeY, x - 1].any() or collisionMask[y + sizeY, x + sizeX].any()):
-                direction = 1 if direction == -1 else -1
-            elif collisionMask[y:y + sizeY - 1, x if direction == -1 else x + sizeX].any():
-                direction = 1 if direction == -1 else -1
-
-            x += direction
-
-            result[y:y + sizeY, x:x + sizeX] = 1
-
-            # if any of the pixels outside of image break
-            if y < 0 or y + sizeY >= collisionMask.shape[0] or x < 0 or x + sizeX >= collisionMask.shape[1]:
+            if current_y < 0 or current_y + sizeY >= levelHeight or current_x < 0 or current_x + sizeX > levelWidth:
                 break
+
+            result[current_y:current_y + sizeY, current_x:current_x + sizeX] = 1
+
+            front_x = current_x + direction
+            support_x_start = front_x
+            support_x_end = front_x + sizeX
+            has_support_ahead = (
+                0 <= support_x_start and support_x_end <= levelWidth and
+                collisionMask[current_y + sizeY, support_x_start:support_x_end].any()
+            )
+
+            front_edge_x = current_x - 1 if direction == -1 else current_x + sizeX
+            has_wall_ahead = (
+                front_edge_x < 0 or front_edge_x >= levelWidth or
+                collisionMask[current_y:current_y + sizeY - 1, front_edge_x].any()
+            )
+
+            if not has_support_ahead or has_wall_ahead:
+                opposite_direction = -direction
+                opposite_front_x = current_x + opposite_direction
+                opposite_support_x_start = opposite_front_x
+                opposite_support_x_end = opposite_front_x + sizeX
+                opposite_has_support = (
+                    0 <= opposite_support_x_start and opposite_support_x_end <= levelWidth and
+                    collisionMask[current_y + sizeY, opposite_support_x_start:opposite_support_x_end].any()
+                )
+                opposite_front_edge_x = current_x - 1 if opposite_direction == -1 else current_x + sizeX
+                opposite_has_wall = (
+                    opposite_front_edge_x < 0 or opposite_front_edge_x >= levelWidth or
+                    collisionMask[current_y:current_y + sizeY - 1, opposite_front_edge_x].any()
+                )
+
+                if not opposite_has_support or opposite_has_wall:
+                    break
+
+                direction = opposite_direction
+                continue
+
+            current_x += direction
 
     return result
 

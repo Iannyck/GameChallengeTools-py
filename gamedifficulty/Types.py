@@ -2,16 +2,17 @@ from enum import Enum
 
 class EnemyType(Enum):
     FLYING_KOOPA = "flying_koopa"  # MUST BE BEFORE KOOPA BECAUSE OF LOADING
+    RED_KOOPA = "koopa_rouge"
     GOOMBA = "goomba" # done
     KOOPA = "koopa" # done
     BOWSER = "bowser"
     LAKITU = "lakitu"
     TURTLE_SPIKE = "turtle"
     HAMMER_BRO = "hammer_bro"
-    FLYING_FISH = "fish_flying"
+    FLYING_FISH = "fish_flying" # done
     PIRANHA_PLANT = "piranha_plant" # done
     TURTLE = "turtle"
-    BULLET_BILL = "bullet_bill"
+    BULLET_BILL = "bullet_bill" # done
 
     def __str__(self):
         return self.value
@@ -21,12 +22,15 @@ class EnemyType(Enum):
     def GetFileName(type) -> str:
         if type == EnemyType.FLYING_KOOPA:
             return "koopa_volant"
+        if type == EnemyType.RED_KOOPA:
+            return "koopa_rouge"
         else:
             return type.value
 
     @staticmethod
     def GetAllTypes() -> list:
         return [EnemyType.FLYING_KOOPA,
+                EnemyType.RED_KOOPA,
                 EnemyType.GOOMBA,
                 EnemyType.KOOPA,
                 EnemyType.BOWSER,
