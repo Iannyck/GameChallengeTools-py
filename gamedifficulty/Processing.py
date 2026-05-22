@@ -96,6 +96,8 @@ def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int,
         return CreateBulletBillDisplacementTexture(detections, collisionMask)
     if ennemyType == EnemyType.FLYING_FISH:
         return CreateFlyingFishDisplacementTexture(detections, collisionMask)
+    if ennemyType == EnemyType.LAKITU:
+        return CreateLakituDisplacementTexture(detections, collisionMask)
 
     return np.zeros(collisionMask.shape, dtype=np.uint8)
 
@@ -244,6 +246,28 @@ def CreateFlyingFishDisplacementTexture(detections: list[(int, int, int, int)], 
             result[top:bottom, currX:currX + sizeX] = 1
 
     return result
+
+
+def CreateLakituDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    """
+    Lakitu specific implementation of CreateDisplacementTexture.
+    Lakitu can attack from almost anywhere except directly above him,
+    so the entire level becomes dangerous except the vertical zone above each Lakitu.
+    """
+    result = np.zeros(collisionMask.shape, dtype=np.uint8)
+    if not detections:
+        return result
+
+    result[:, :] = 1
+    height, width = collisionMask.shape
+
+    for (y, x, sizeY, sizeX) in detections:
+        safe_y_end = max(0, y)
+        if safe_y_end > 0:
+            result[0:safe_y_end, :] = 0
+
+    return result
+
 
 def CreatePiranaPlantDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> \
 cv.Mat[cv.CV_8U]:

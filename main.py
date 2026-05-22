@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_7_3"
+level = "Niveau_6_1"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
