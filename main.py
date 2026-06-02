@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_6_1"
+level = "Niveau_1_1"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
@@ -33,12 +33,6 @@ passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.
 # Transform all positions into an image mask
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
-# Calculate horizontal expansion for jumping boards (higher jump = more horizontal reach)
-jumpBoardExpansion = GD.Processing.CalculateHorizontalExpansion(
-    int(GD.Constants.jumpBoardHeight),
-    int(GD.Constants.jumpHeight)
-)
-
 # Mark all pixels mario can (theoretically) reach
 reach = GD.Processing.CreateReachTextureFromPatternResults(
     levelImage.shape[:2],
@@ -46,8 +40,10 @@ reach = GD.Processing.CreateReachTextureFromPatternResults(
         (collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight)),
         (jumpBoardPositions, int(GD.Constants.jumpBoardHeight))
     ],
-    horizontalExpansions=[0, jumpBoardExpansion]
 )
+
+normalizedReach = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask) / 100.0
+cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
 # Create static danger map (holes)
 danger = GD.Processing.CreateStaticDanger(collisionMask)

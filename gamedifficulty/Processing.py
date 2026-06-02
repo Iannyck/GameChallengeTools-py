@@ -347,6 +347,80 @@ cv.Mat[cv.CV_8U]:
     return CreateReachTextureFromPatternResults(shape, [(detections, height)])
 
 
+def CreateReachNormalizedTexture(reach: cv.Mat[cv.CV_8U], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
+    """
+    Creates a normalized reach texture from an existing reach mask.
+    For each "ground" point where the pixel is not reachable but the pixel immediately above is,
+    assigns a value of 100 and then creates a vertical gradient upwards in the same column,
+    subtracting 1 for each pixel until reaching 0.
+    It also detects horizontal platform edges and propagates values left and right across each row,
+    then extends those values downward in each unobstructed column.
+    :param reach: binary reach mask where 1 means reachable and 0 means not reachable
+    :return: normalized reach texture with values from 0 to 100
+    """
+    height, width = reach.shape
+    reachable = reach > 0
+    collision = collisionMask > 0
+
+    # Build vertical seed values from the ground edge points.
+    rowValues = np.zeros(reach.shape, dtype=np.uint8)
+    seeds = np.nonzero(np.logical_and(~reachable[1:, :], reachable[:-1, :]))
+    for seed_y, seed_x in zip(seeds[0], seeds[1]):
+        y = seed_y + 1
+        value = 100
+        oy = y - 1
+        while oy > 0 and value > 0:
+            if collision[oy, seed_x]:
+                break
+            if rowValues[oy, seed_x] < value:
+                rowValues[oy, seed_x] = value
+            oy -= 1
+            value -= 1
+
+    result = np.zeros_like(rowValues)
+
+    # Horizontal propagation along each row from the vertical sources.
+    for oy in range(1, height):
+        row = rowValues[oy]
+        if not row.any():
+            continue
+
+        row_ext = row.copy()
+        current = 0
+
+        for ox in range(width):
+            if collision[oy, ox]:
+                current = 0
+                continue
+            current = max(current - 1, int(row[ox])) if current > 0 else int(row[ox])
+            if current > row_ext[ox]:
+                row_ext[ox] = current
+
+        current = 0
+        for ox in range(width - 1, -1, -1):
+            if collision[oy, ox]:
+                current = 0
+                continue
+            current = max(current - 1, int(row[ox])) if current > 0 else int(row[ox])
+            if current > row_ext[ox]:
+                row_ext[ox] = current
+
+        result[oy] = row_ext
+
+    # Downward extension from each row value along columns.
+    for ox in range(width):
+        current = 0
+        for oy in range(height - 1):
+            if collision[oy, ox]:
+                current = 0
+                continue
+            current = max(current, int(result[oy, ox]))
+            if current > result[oy, ox]:
+                result[oy, ox] = current
+
+    return result
+
+
 def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, int, int)]:
     # Sort by x-axis (left coordinate)
     detections.sort(key=lambda box: box[1])
