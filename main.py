@@ -42,8 +42,25 @@ reach = GD.Processing.CreateReachTextureFromPatternResults(
     ],
 )
 
-normalizedReach = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask) / 100.0
+normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask)
+normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
+
+path = GD.Processing.CreateReachAStarPath((50,100),(3100,100), normalizedReach, False)
+
+# Example path usage for CreatePathDifficultyVariance
+height, width = levelImage.shape[:2]
+pathVariance = GD.Processing.CreatePathDifficultyVariance(path, normalizedReachMap)
+
+plt.figure(figsize=(10, 3))
+plt.plot(pathVariance, label="Path difficulty variance")
+plt.title(f"Path difficulty variance curve for level {level}")
+plt.xlabel("Level X coordinate")
+plt.ylabel("Average normalized reach delta")
+plt.ylim(-100, 100)
+plt.grid(True)
+plt.legend()
+plt.show()
 
 # Create static danger map (holes)
 danger = GD.Processing.CreateStaticDanger(collisionMask)

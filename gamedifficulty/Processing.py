@@ -1,4 +1,5 @@
 import cv2 as cv
+import heapq
 import numpy as np
 from gamedifficulty.Constants import *
 from gamedifficulty.Types import EnemyType
@@ -481,6 +482,109 @@ def CreateReachNormalizedTexture(reach: cv.Mat[cv.CV_8U], collisionMask: cv.Mat[
                 result[oy, ox] = current
 
     return result
+
+
+def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
+    """
+    Computes a difficulty-variance curve from a Mario path and a normalized reach map.
+    Each successive step on the path produces a delta between the normalized reach value
+    at the new point and the previous point. Results are aggregated per x coordinate,
+    so the returned array can be plotted as a progression over the level x axis.
+
+    :param path: ordered list of (x, y) positions representing Mario's path
+    :param normalizedReach: normalized reach map with values from 0 to 100
+    :return: 1D float32 array indexed by x coordinate with average signed variance
+    """
+    if normalizedReach is None or len(path) < 2:
+        return np.zeros((normalizedReach.shape[1],), dtype=np.float32) if normalizedReach is not None else np.array([], dtype=np.float32)
+
+    height, width = normalizedReach.shape
+    variance_by_x = np.zeros((width,), dtype=np.float32)
+    counts_by_x = np.zeros((width,), dtype=np.int32)
+
+    for (prev_x, prev_y), (x, y) in zip(path, path[1:]):
+        current_x = int(round(x))
+        current_y = int(round(y))
+        previous_x = int(round(prev_x))
+        previous_y = int(round(prev_y))
+
+        if not (0 <= current_x < width and 0 <= current_y < height and 0 <= previous_x < width and 0 <= previous_y < height):
+            continue
+
+        delta = float(normalizedReach[previous_y, previous_y]) - float(normalizedReach[current_y, current_x])
+        variance_by_x[current_x] += delta
+        counts_by_x[current_x] += 1
+
+    nonzero = counts_by_x > 0
+    variance_by_x[nonzero] /= counts_by_x[nonzero].astype(np.float32)
+
+    return variance_by_x
+
+
+def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat[cv.CV_8U], allowDiagonal: bool = True) -> list[tuple[int, int]]:
+    """
+    Finds a coherent path from start to goal using A* over the normalized reach map.
+    Higher normalized reach values are preferred: 100 is lowest traversal cost and 0 is impassable.
+
+    :param start: (x, y) start coordinate
+    :param goal: (x, y) goal coordinate
+    :param normalizedReach: normalized reach map with values from 0 to 100
+    :param allowDiagonal: if True, allows 8-connected movement; otherwise uses 4-connected movement
+    :return: ordered list of (x, y) positions from start to goal, or [] if no path exists
+    """
+    if normalizedReach is None:
+        return []
+
+    height, width = normalizedReach.shape
+    sx, sy = int(round(start[0])), int(round(start[1]))
+    gx, gy = int(round(goal[0])), int(round(goal[1]))
+
+    if not (0 <= sx < width and 0 <= sy < height and 0 <= gx < width and 0 <= gy < height):
+        return []
+    if normalizedReach[sy, sx] == 0 or normalizedReach[gy, gx] == 0:
+        return []
+
+    def heuristic(x: int, y: int) -> float:
+        return float(abs(x - gx) + abs(y - gy))
+
+    neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0)]
+    if allowDiagonal:
+        neighbors += [(-1, -1, 1.41421356), (-1, 1, 1.41421356), (1, -1, 1.41421356), (1, 1, 1.41421356)]
+
+    g_score = np.full((height, width), np.inf, dtype=np.float32)
+    g_score[sy, sx] = 0.0
+
+    came_from: dict[tuple[int, int], tuple[int, int]] = {}
+    open_heap = []
+    counter = 0
+    heapq.heappush(open_heap, (heuristic(sx, sy), counter, (sx, sy)))
+
+    while open_heap:
+        _, _, (cx, cy) = heapq.heappop(open_heap)
+        if (cx, cy) == (gx, gy):
+            path = [(gx, gy)]
+            while path[-1] != (sx, sy):
+                path.append(came_from[path[-1]])
+            return list(reversed(path))
+
+        current_g = g_score[cy, cx]
+        for dx, dy, move_cost in neighbors:
+            nx = cx + dx
+            ny = cy + dy
+            if not (0 <= nx < width and 0 <= ny < height):
+                continue
+            if normalizedReach[ny, nx] == 0:
+                continue
+
+            step_cost = 101.0 - float(normalizedReach[ny, nx])
+            tentative_g = current_g + step_cost * move_cost
+            if tentative_g < g_score[ny, nx]:
+                g_score[ny, nx] = tentative_g
+                counter += 1
+                heapq.heappush(open_heap, (tentative_g + heuristic(nx, ny), counter, (nx, ny)))
+                came_from[(nx, ny)] = (cx, cy)
+
+    return []
 
 
 def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, int, int)]:
