@@ -51,18 +51,25 @@ danger = GD.Processing.CreateStaticDanger(collisionMask)
 cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
-# Create enemy danger map
-for type in GD.Types.EnemyType.GetAllTypes():
+enemyDetections = {}
+# Create enemy danger map and collect enemy detections per type
+for enemyType in GD.Types.EnemyType.GetAllTypes():
     # Find all enemies in the level
-    enemyPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(type), 0.85)
+    enemyPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(enemyType), 0.85)
+    enemyDetections[enemyType] = enemyPositions
+
     # Find their possible positions
-    ed = GD.Processing.CreateDisplacementTexture(type, enemyPositions, collisionMask)
+    ed = GD.Processing.CreateDisplacementTexture(enemyType, enemyPositions, collisionMask)
 
     # merge static and enemy danger
     enemyDanger = np.maximum(ed, enemyDanger)
 
 # Merge enemy danger and static danger
 danger = np.maximum(danger, enemyDanger)
+
+# Create a pheromone map from enemy displacement zones
+enemyPheromoneMap = GD.Processing.CreateEnemyPheromoneMap(enemyDetections, collisionMask)
+cv.imwrite(f"ressources/{level}/enemy_pheromone_map.png", (np.clip(enemyPheromoneMap, 0.0, 1.0) * 255).astype(np.uint8))
 
 difficultyCurves = []
 # Calculate difficulty for different window sizes

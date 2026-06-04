@@ -102,8 +102,70 @@ def CreateDisplacementTexture(ennemyType: EnemyType, detections: list[(int, int,
     return np.zeros(collisionMask.shape, dtype=np.uint8)
 
 
-def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[
-    cv.CV_8U]:
+def CreateEnemyPheromoneMap(enemyDetections: dict[EnemyType, list[(int, int, int, int)]],
+                             collisionMask: cv.Mat[cv.CV_8U],
+                             pheromoneValues: dict[EnemyType, float] = None) -> np.ndarray:
+    """
+    Creates a pheromone map from enemy displacement zones.
+    Each enemy contributes a configurable amount of pheromone on all pixels it can reach.
+    If multiple enemies can reach the same pixel, the values are summed.
+
+    :param enemyDetections: mapping from enemy type to list of detected enemy bounding boxes
+    :param collisionMask: collision mask used to compute displacement zones
+    :param pheromoneValues: optional weights per enemy type
+    :return: float32 pheromone map
+    """
+    if pheromoneValues is None:
+        pheromoneValues = {
+            EnemyType.GOOMBA: 0.2,
+            EnemyType.KOOPA: 0.2,
+            EnemyType.TURTLE: 0.2,
+            EnemyType.RED_KOOPA: 0.3,
+            EnemyType.FLYING_KOOPA: 0.3,
+            EnemyType.BOWSER: 0.5,
+            EnemyType.LAKITU: 0.5,
+            EnemyType.TURTLE_SPIKE: 0.25,
+            EnemyType.HAMMER_BRO: 0.3,
+            EnemyType.FLYING_FISH: 0.3,
+            EnemyType.PIRANHA_PLANT: 0.1,
+            EnemyType.BULLET_BILL: 0.25,
+        }
+
+    pheromones = np.zeros(collisionMask.shape, dtype=np.float32)
+    total_pixels = float(collisionMask.size)
+    scaleFactor = 2
+    maxScale = 3
+
+    for enemyType, detections in enemyDetections.items():
+        if not detections:
+            continue
+
+        base_weight = float(pheromoneValues.get(enemyType, 0.0))
+        if base_weight <= 0:
+            continue
+
+        # Process each enemy individually so overlaps accumulate and scale by area
+        for detection in detections:
+            singleDetection = [detection]
+            displacement = CreateDisplacementTexture(enemyType, singleDetection, collisionMask)
+            area = float(np.count_nonzero(displacement))
+            if area <= 0.0:
+                continue
+
+            # area fraction in level
+            area_frac = area / total_pixels
+
+            # smaller area -> larger scale; clamp the scale
+            scale = 1.0 + (1.0 - area_frac) * scaleFactor
+            if scale > maxScale:
+                scale = maxScale
+
+            pheromones += displacement.astype(np.float32) * (base_weight * scale)
+
+    return pheromones
+
+
+def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     """
     Goomba specific implementation of CreateDisplacementTexture
     """
