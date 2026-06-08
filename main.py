@@ -46,7 +46,21 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((50,100),(3100,100), normalizedReach, False)
+path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, False)
+
+# Save a visualization of the computed path on the level image
+pathImg = levelImage.copy()
+for i in range(1, len(path)):
+    prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
+    curr = (int(round(path[i][0])), int(round(path[i][1])))
+    cv.line(pathImg, prev, curr, (0, 255, 255), 2)
+    cv.circle(pathImg, curr, 3, (0, 255, 255), -1)
+if path:
+    start = (int(round(path[0][0])), int(round(path[0][1])))
+    cv.circle(pathImg, start, 4, (0, 0, 255), -1)
+    goal = (int(round(path[-1][0])), int(round(path[-1][1])))
+    cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
+cv.imwrite(f"ressources/{level}/path.png", pathImg)
 
 # Example path usage for CreatePathDifficultyVariance
 height, width = levelImage.shape[:2]

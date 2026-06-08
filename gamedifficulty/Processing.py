@@ -512,6 +512,7 @@ def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: c
             continue
 
         delta = float(normalizedReach[previous_y, previous_y]) - float(normalizedReach[current_y, current_x])
+        print(delta)
         variance_by_x[current_x] += delta
         counts_by_x[current_x] += 1
 
