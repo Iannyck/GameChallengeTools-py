@@ -46,7 +46,7 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, False)
+path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, True)
 
 # Save a visualization of the computed path on the level image
 pathImg = levelImage.copy()

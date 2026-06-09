@@ -413,75 +413,81 @@ cv.Mat[cv.CV_8U]:
 def CreateReachNormalizedTexture(reach: cv.Mat[cv.CV_8U], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     """
     Creates a normalized reach texture from an existing reach mask.
-    For each "ground" point where the pixel is not reachable but the pixel immediately above is,
-    assigns a value of 100 and then creates a vertical gradient upwards in the same column,
-    subtracting 1 for each pixel until reaching 0.
-    It also detects horizontal platform edges and propagates values left and right across each row,
-    then extends those values downward in each unobstructed column.
+    Accumulates (sums) contributions from multiple reach sources instead of taking max.
+    Final result is normalized to 0-100 scale.
+    Optimized for large levels using row/column propagation.
     :param reach: binary reach mask where 1 means reachable and 0 means not reachable
-    :return: normalized reach texture with values from 0 to 100
+    :param collisionMask: collision mask where 1 means solid
+    :return: normalized reach texture with accumulated values scaled to 0-100
     """
     height, width = reach.shape
     reachable = reach > 0
     collision = collisionMask > 0
 
-    # Build vertical seed values from the ground edge points.
-    rowValues = np.zeros(reach.shape, dtype=np.uint8)
+    # Build vertical seed values from ground edges - accumulate upwards
+    rowValues = np.zeros(reach.shape, dtype=np.float32)
     seeds = np.nonzero(np.logical_and(~reachable[1:, :], reachable[:-1, :]))
     for seed_y, seed_x in zip(seeds[0], seeds[1]):
         y = seed_y + 1
-        value = 100
+        value = 100.0
         oy = y - 1
-        while oy > 0 and value > 0:
+        while oy >= 0 and value > 0:
             if collision[oy, seed_x]:
                 break
-            if rowValues[oy, seed_x] < value:
-                rowValues[oy, seed_x] = value
+            rowValues[oy, seed_x] += value
             oy -= 1
-            value -= 1
+            value -= 1.0
 
-    result = np.zeros_like(rowValues)
+    result = np.zeros((height, width), dtype=np.float32)
 
-    # Horizontal propagation along each row from the vertical sources.
-    for oy in range(1, height):
-        row = rowValues[oy]
+    # Horizontal propagation left-to-right and right-to-left along each row
+    for oy in range(height):
+        row = rowValues[oy].copy()
         if not row.any():
             continue
 
-        row_ext = row.copy()
-        current = 0
-
+        row_ext = np.zeros(width, dtype=np.float32)
+        
+        # Left-to-right propagation
+        current = 0.0
         for ox in range(width):
             if collision[oy, ox]:
-                current = 0
-                continue
-            current = max(current - 1, int(row[ox])) if current > 0 else int(row[ox])
-            if current > row_ext[ox]:
-                row_ext[ox] = current
+                current = 0.0
+            else:
+                if current > 0:
+                    current -= 1.0
+                current = max(current, float(row[ox]))
+                row_ext[ox] += current
 
-        current = 0
+        # Right-to-left propagation
+        current = 0.0
         for ox in range(width - 1, -1, -1):
             if collision[oy, ox]:
-                current = 0
-                continue
-            current = max(current - 1, int(row[ox])) if current > 0 else int(row[ox])
-            if current > row_ext[ox]:
-                row_ext[ox] = current
+                current = 0.0
+            else:
+                if current > 0:
+                    current -= 1.0
+                current = max(current, float(row[ox]))
+                row_ext[ox] += current
 
         result[oy] = row_ext
 
-    # Downward extension from each row value along columns.
+    # Downward extension from each row along columns
     for ox in range(width):
-        current = 0
-        for oy in range(height - 1):
+        current = 0.0
+        for oy in range(height):
             if collision[oy, ox]:
-                current = 0
-                continue
-            current = max(current, int(result[oy, ox]))
-            if current > result[oy, ox]:
+                current = 0.0
+            else:
+                current = max(current - 1.0 if current > 0 else 0, float(result[oy, ox]))
                 result[oy, ox] = current
 
-    return result
+    # Normalize to 0-100 scale
+    max_val = np.max(result)
+    if max_val > 0:
+        result = (result / max_val) * 100.0
+
+    return result.astype(np.uint8)
 
 
 def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
@@ -511,8 +517,8 @@ def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: c
         if not (0 <= current_x < width and 0 <= current_y < height and 0 <= previous_x < width and 0 <= previous_y < height):
             continue
 
-        delta = float(normalizedReach[previous_y, previous_y]) - float(normalizedReach[current_y, current_x])
-        print(delta)
+        delta = float(normalizedReach[previous_y, previous_x]) - float(normalizedReach[current_y, current_x])
+        
         variance_by_x[current_x] += delta
         counts_by_x[current_x] += 1
 
@@ -524,13 +530,15 @@ def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: c
 
 def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat[cv.CV_8U], allowDiagonal: bool = True) -> list[tuple[int, int]]:
     """
-    Finds a coherent path from start to goal using A* over the normalized reach map.
-    Higher normalized reach values are preferred: 100 is lowest traversal cost and 0 is impassable.
+    Finds a path from start to goal using A* over the normalized reach map.
+    This pathfinder simulates Mario gravity: whenever the current move is not an upward jump,
+    the character falls to the lowest reachable point in that column.
+    100 is treated as the easiest location to reach and 0 as impassable.
 
     :param start: (x, y) start coordinate
     :param goal: (x, y) goal coordinate
     :param normalizedReach: normalized reach map with values from 0 to 100
-    :param allowDiagonal: if True, allows 8-connected movement; otherwise uses 4-connected movement
+    :param allowDiagonal: if True, allows diagonal moves for jump arcs; otherwise uses 4-connected movement
     :return: ordered list of (x, y) positions from start to goal, or [] if no path exists
     """
     if normalizedReach is None:
@@ -548,6 +556,15 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
     def heuristic(x: int, y: int) -> float:
         return float(abs(x - gx) + abs(y - gy))
 
+    def fall_to_lowest(x: int, y: int) -> int:
+        while y + 1 < height and normalizedReach[y + 1, x] > 0:
+            y += 1
+        return y
+
+    sy = fall_to_lowest(sx, sy)
+    if normalizedReach[sy, sx] == 0:
+        return []
+
     neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0)]
     if allowDiagonal:
         neighbors += [(-1, -1, 1.41421356), (-1, 1, 1.41421356), (1, -1, 1.41421356), (1, 1, 1.41421356)]
@@ -562,13 +579,15 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
 
     while open_heap:
         _, _, (cx, cy) = heapq.heappop(open_heap)
+        current_g = g_score[cy, cx]
+        if current_g == np.inf:
+            continue
         if (cx, cy) == (gx, gy):
             path = [(gx, gy)]
             while path[-1] != (sx, sy):
                 path.append(came_from[path[-1]])
             return list(reversed(path))
 
-        current_g = g_score[cy, cx]
         for dx, dy, move_cost in neighbors:
             nx = cx + dx
             ny = cy + dy
@@ -576,6 +595,12 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
                 continue
             if normalizedReach[ny, nx] == 0:
                 continue
+
+            # If the move is not upward, Mario falls to the lowest reachable point in that column.
+            if dy >= 0:
+                ny = fall_to_lowest(nx, ny)
+                if normalizedReach[ny, nx] == 0:
+                    continue
 
             step_cost = 101.0 - float(normalizedReach[ny, nx])
             tentative_g = current_g + step_cost * move_cost
