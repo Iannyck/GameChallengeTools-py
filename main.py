@@ -33,6 +33,11 @@ passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.
 # Transform all positions into an image mask
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
+# Create static danger map (holes)
+danger = GD.Processing.CreateStaticDanger(collisionMask)
+
+cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
+
 # Mark all pixels mario can (theoretically) reach
 reach = GD.Processing.CreateReachTextureFromPatternResults(
     levelImage.shape[:2],
@@ -46,7 +51,7 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, True)
+path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, danger ,True)
 
 # Save a visualization of the computed path on the level image
 pathImg = levelImage.copy()
@@ -71,15 +76,10 @@ plt.plot(pathVariance, label="Path difficulty variance")
 plt.title(f"Path difficulty variance curve for level {level}")
 plt.xlabel("Level X coordinate")
 plt.ylabel("Average normalized reach delta")
-plt.ylim(-100, 100)
+plt.ylim(-50, 50)
 plt.grid(True)
 plt.legend()
 plt.show()
-
-# Create static danger map (holes)
-danger = GD.Processing.CreateStaticDanger(collisionMask)
-
-cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
 enemyDetections = {}

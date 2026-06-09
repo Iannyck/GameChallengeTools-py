@@ -528,7 +528,7 @@ def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: c
     return variance_by_x
 
 
-def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat[cv.CV_8U], allowDiagonal: bool = True) -> list[tuple[int, int]]:
+def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat, dangerMask: cv.Mat = None, allowDiagonal: bool = True) -> list[tuple[int, int]]:
     """
     Finds a path from start to goal using A* over the normalized reach map.
     This pathfinder simulates Mario gravity: whenever the current move is not an upward jump,
@@ -538,6 +538,7 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
     :param start: (x, y) start coordinate
     :param goal: (x, y) goal coordinate
     :param normalizedReach: normalized reach map with values from 0 to 100
+    :param dangerMask: Optional static danger mask (e.g., holes). Prevents Mario from landing in lethal zones.
     :param allowDiagonal: if True, allows diagonal moves for jump arcs; otherwise uses 4-connected movement
     :return: ordered list of (x, y) positions from start to goal, or [] if no path exists
     """
@@ -563,6 +564,10 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
 
     sy = fall_to_lowest(sx, sy)
     if normalizedReach[sy, sx] == 0:
+        return []
+        
+    # SÉCURITÉ : Empêcher l'algorithme de démarrer s'il est déjà dans un trou
+    if sy >= height - 1 or (dangerMask is not None and dangerMask[sy, sx] > 0):
         return []
 
     neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0)]
@@ -596,10 +601,15 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
             if normalizedReach[ny, nx] == 0:
                 continue
 
-            # If the move is not upward, Mario falls to the lowest reachable point in that column.
+            # Si le mouvement n'est pas vers le haut, Mario subit la gravité.
             if dy >= 0:
                 ny = fall_to_lowest(nx, ny)
                 if normalizedReach[ny, nx] == 0:
+                    continue
+                
+                # NOUVELLE CONDITION : Invalider ce déplacement si l'atterrissage se fait 
+                # sur la dernière ligne de l'image (trou) ou dans une zone de static_danger.
+                if ny >= height - 1 or (dangerMask is not None and dangerMask[ny, nx] > 0):
                     continue
 
             step_cost = 101.0 - float(normalizedReach[ny, nx])
@@ -611,7 +621,6 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
                 came_from[(nx, ny)] = (cx, cy)
 
     return []
-
 
 def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, int, int)]:
     # Sort by x-axis (left coordinate)
