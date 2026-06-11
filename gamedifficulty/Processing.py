@@ -409,65 +409,76 @@ cv.Mat[cv.CV_8U]:
     """
     return CreateReachTextureFromPatternResults(shape, [(detections, height)])
 
+import cv2 as cv
+import numpy as np
+from numba import njit
 
-def CreateReachNormalizedTexture(reach: cv.Mat[cv.CV_8U], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
-    """
-    Creates a normalized reach texture from an existing reach mask.
-    For each "ground" point where the pixel is not reachable but the pixel immediately above is,
-    assigns a value of 100 and then creates a vertical gradient upwards in the same column,
-    subtracting 1 for each pixel until reaching 0.
-    It also detects horizontal platform edges: when a non-reachable pixel is adjacent to a reachable
-    pixel on the left or right, it assigns 100 at that edge and propagates a horizontal gradient
-    towards the outside of the platform.
-    :param reach: binary reach mask where 1 means reachable and 0 means not reachable
-    :return: normalized reach texture with values from 0 to 100
-    """
-    result = np.zeros(reach.shape, dtype=np.uint32)
-    height, width = reach.shape
-    reachable = reach > 0
-
+@njit
+def _compute_reach_loops(reachable, collisionMask, height, width):
+    # On garde le type uint32 pour éviter les dépassements lors des accumulations (+=)
+    result = np.zeros((height, width), dtype=np.uint32)
+    
     # vertical gradient from ground points
     for x in range(width):
         for y in range(1, height):
             if not reachable[y, x] and reachable[y - 1, x]:
-                    value = 100
-                    for oy in range(y - 1, 0, -1):
-                        if collisionMask[oy, x]:
+                value = 100
+                for oy in range(y - 1, 0, -1):
+                    if collisionMask[oy, x]:
+                        break
+                            
+                    result[oy, x] += max(0, value)
+                    
+                    # Propagation Gauche
+                    valueX = value
+                    for ox in range(x, x - value, -1):
+                        if ox < 0 or collisionMask[oy, ox]:
                             break
-                                
-                        result[oy, x] += max(0, value)
                         
-                        valueX = value
-                        for ox in range(x, x - value, -1):
-                            if ox < 0 or collisionMask[oy, ox]:
-                                break;
+                        vX = max(0, valueX)
+                        result[oy, ox] += vX
 
-                            result[oy, ox] += max(0, valueX)
+                        for ooy in range(oy + 1, height - 1, 1):
+                            if collisionMask[ooy, ox]:
+                                break
+                        
+                            result[ooy, ox] += vX
 
-                            for ooy in range(oy + 1, height - 1, 1):
-                                if collisionMask[ooy, ox]:
-                                    break;
-                            
-                                result[ooy, ox] += max(0, valueX)
+                        valueX -= 1
 
-                            valueX -= 1
+                    # Propagation Droite
+                    valueX = value
+                    for ox in range(x, x + value, 1):
+                        if ox >= width or collisionMask[oy, ox]:
+                            break
 
-                        valueX = value
-                        for ox in range(x, x + value, 1):
-                            if ox >= width or collisionMask[oy, ox]:
-                                break;
+                        vX = max(0, valueX)
+                        result[oy, ox] += vX
 
-                            result[oy, ox] += max(0, valueX)
+                        for ooy in range(oy + 1, height - 1, 1):
+                            if collisionMask[ooy, ox]:
+                                break
+                        
+                            result[ooy, ox] += vX
 
-                            for ooy in range(oy + 1, height - 1, 1):
-                                if collisionMask[ooy, ox]:
-                                    break;
-                            
-                                result[ooy, ox] += max(valueX, 0)
+                        valueX -= 1
 
-                            valueX -= 1
+                    value -= 1
+    return result
 
-                        value -= 1
+def CreateReachNormalizedTexture(reach: cv.Mat, collisionMask: cv.Mat) -> cv.Mat:
+    """
+    Version optimisée de la création de texture de reach normalisée.
+    Conserve 100% de la logique d'origine mais s'exécute instantanément grâce à Numba.
+    """
+    height, width = reach.shape
+    reachable = reach > 0
+    
+    # Appel de la fonction compilée à la volée (JIT)
+    result_compiled = _compute_reach_loops(reachable, collisionMask, height, width)
+    
+    # On convertit en float pour la normalisation d'origine
+    result = result_compiled.astype(np.float32)
 
     # Normalize to 0-100 scale
     max_val = np.max(result)

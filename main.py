@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_1_1"
+level = "Niveau_1_2"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
@@ -51,7 +51,7 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, danger ,True)
+path = GD.Processing.CreateReachAStarPath((25,195),(2650,140), normalizedReach, danger ,True)
 
 # Save a visualization of the computed path on the level image
 pathImg = levelImage.copy()
