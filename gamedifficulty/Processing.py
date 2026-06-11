@@ -488,16 +488,9 @@ def CreateReachNormalizedTexture(reach: cv.Mat, collisionMask: cv.Mat) -> cv.Mat
     return result.astype(np.uint8)
 
 
-def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
+def CreatePathAccessibilityVariance(path: list[tuple[int, int]], normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
     """
     Computes a difficulty-variance curve from a Mario path and a normalized reach map.
-    Each successive step on the path produces a delta between the normalized reach value
-    at the new point and the previous point. Results are aggregated per x coordinate,
-    so the returned array can be plotted as a progression over the level x axis.
-
-    :param path: ordered list of (x, y) positions representing Mario's path
-    :param normalizedReach: normalized reach map with values from 0 to 100
-    :return: 1D float32 array indexed by x coordinate with average signed variance
     """
     if normalizedReach is None or len(path) < 2:
         return np.zeros((normalizedReach.shape[1],), dtype=np.float32) if normalizedReach is not None else np.array([], dtype=np.float32)
@@ -522,6 +515,25 @@ def CreatePathDifficultyVariance(path: list[tuple[int, int]], normalizedReach: c
 
     nonzero = counts_by_x > 0
     variance_by_x[nonzero] /= counts_by_x[nonzero].astype(np.float32)
+
+    return variance_by_x
+
+
+def CreatePathAccessibilityValue(path: list[tuple[int, int]], normalizedReach: cv.Mat) -> np.ndarray:
+    """
+    Computes a accessibility variance curve from a Mario path and a normalized reach map.
+    """
+    height, width = normalizedReach.shape
+    variance_by_x = np.zeros((width,), dtype=np.float32)
+
+    for (x, y) in path:
+        curr_x = int(round(x))
+        curr_y = int(round(y))
+
+        if 0 <= curr_x < width and 0 <= curr_y < height:
+            valeur = normalizedReach[curr_y, curr_x]
+           
+            variance_by_x[curr_x] = float(valeur) / 100.0
 
     return variance_by_x
 

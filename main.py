@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 # Load the level image
 # level = "Niveau_6_3"
-level = "Niveau_1_2"
+level = "Niveau_1_1"
 levelImage = cv.imread(f"ressources/{level}/level.png")
 
 # cv.imshow("Level", levelImage)
@@ -51,7 +51,7 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((25,195),(2650,140), normalizedReach, danger ,True)
+path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, danger ,True)
 
 # Save a visualization of the computed path on the level image
 pathImg = levelImage.copy()
@@ -67,16 +67,28 @@ if path:
     cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
 cv.imwrite(f"ressources/{level}/path.png", pathImg)
 
-# Example path usage for CreatePathDifficultyVariance
-height, width = levelImage.shape[:2]
-pathVariance = GD.Processing.CreatePathDifficultyVariance(path, normalizedReachMap)
+# Example path usage for CreatePathAccessibilityValue
+pathValue = GD.Processing.CreatePathAccessibilityValue(path, normalizedReachMap)
 
 plt.figure(figsize=(10, 3))
-plt.plot(pathVariance, label="Path difficulty variance")
-plt.title(f"Path difficulty variance curve for level {level}")
+plt.plot(pathValue, label="Path Accessibility Value")
+plt.title(f"Path accessibility value curve for level {level}")
 plt.xlabel("Level X coordinate")
-plt.ylabel("Average normalized reach delta")
-plt.ylim(-50, 50)
+plt.ylabel("Possible access to this x value")
+plt.ylim(np.min(pathValue), np.max(pathValue))
+plt.grid(True)
+plt.legend()
+plt.show()
+
+# Example path usage for CreatePathAccessibilityVariance
+pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, normalizedReachMap)
+
+plt.figure(figsize=(10, 3))
+plt.plot(pathVariance, label="Path Accessibility Variance")
+plt.title(f"Path accessibility variance curve for level {level}")
+plt.xlabel("Level X coordinate")
+plt.ylabel("Variance between previous x accessiblity")
+plt.ylim(np.min(pathVariance), np.max(pathVariance))
 plt.grid(True)
 plt.legend()
 plt.show()
