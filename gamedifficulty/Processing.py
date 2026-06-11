@@ -632,6 +632,73 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
 
     return []
 
+def CreateSmoothHighPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat, dangerMask: cv.Mat = None, allowDiagonal: bool = True) -> list[tuple[int, int]]:
+    height, width = normalizedReach.shape
+    sx, sy = int(round(start[0])), int(round(start[1]))
+    gx, gy = int(round(goal[0])), int(round(goal[1]))
+
+    def fall_to_lowest(x: int, y: int) -> int:
+        while y + 1 < height and normalizedReach[y + 1, x] > 0:
+            y += 1
+        return y
+
+    sy, gy = fall_to_lowest(sx, sy), fall_to_lowest(gx, gy)
+    
+    # g_score stocke (score, y_precedent) pour calculer la variance de transition
+    g_score = np.full((height, width), np.inf, dtype=np.float32)
+    # On stocke aussi la valeur de reach précédente pour calculer la variance
+    prev_reach = np.full((height, width), -1.0, dtype=np.float32)
+    
+    g_score[sy, sx] = 0.0
+    came_from = {}
+    open_heap = [(0.0, 0, (sx, sy))] # (priority, counter, coord)
+
+    def heuristic(x, y):
+        # Heuristique classique
+        return float(abs(x - gx) + abs(y - gy))
+
+    while open_heap:
+        priority, _, (cx, cy) = heapq.heappop(open_heap)
+        
+        if (cx, cy) == (gx, gy):
+            path = [(gx, gy)]
+            while path[-1] != (sx, sy):
+                path.append(came_from[path[-1]])
+            return list(reversed(path))
+
+        for dx, dy, move_cost in ([(-1,0,1),(1,0,1),(0,-1,1),(0,1,1)] + 
+                                 ([(-1,-1,1.4),(-1,1,1.4),(1,-1,1.4),(1,1,1.4)] if allowDiagonal else [])):
+            nx, ny = cx + dx, cy + dy
+            if not (0 <= nx < width and 0 <= ny < height) or normalizedReach[ny, nx] == 0:
+                continue
+
+            if dy >= 0:
+                ny = fall_to_lowest(nx, ny)
+                if ny >= height - 1 or (dangerMask is not None and dangerMask[ny, nx] > 0):
+                    continue
+
+            # --- CALCUL DU COÛT ÉVOLUÉ ---
+            reach_val = float(normalizedReach[ny, nx])
+            # 1. Base : difficulté (on veut éviter les zones à 0, donc 100-reach)
+            base_cost = (101.0 - reach_val)
+            
+            # 2. Variance : différence avec la case précédente (pénalise les changements brusques)
+            variance_cost = abs(reach_val - float(normalizedReach[cy, cx])) * 2.0
+            
+            # 3. Altitude : bonus pour les y faibles (haut de l'écran)
+            altitude_bonus = (ny / height) * 20.0 
+            
+            step_cost = (base_cost + variance_cost + altitude_bonus) * move_cost
+            tentative_g = g_score[cy, cx] + step_cost
+
+            if tentative_g < g_score[ny, nx]:
+                g_score[ny, nx] = tentative_g
+                came_from[(nx, ny)] = (cx, cy)
+                # Priorité = g + h
+                heapq.heappush(open_heap, (tentative_g + heuristic(nx, ny), id((nx, ny)), (nx, ny)))
+
+    return []
+
 def MergeDetection(detections: list[(int, int, int, int)]) -> list[(int, int, int, int)]:
     # Sort by x-axis (left coordinate)
     detections.sort(key=lambda box: box[1])

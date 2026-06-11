@@ -10,6 +10,48 @@ import matplotlib.pyplot as plt
 # You can find an example implementation in python of the actual algorithm in gamedifficulty/Processing.py,
 # function CalculateDifficulty
 
+def show_graph_for_path(path: list[tuple[int, int]], name):
+    # Save a visualization of the computed path on the level image
+    pathImg = levelImage.copy()
+    for i in range(1, len(path)):
+        prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
+        curr = (int(round(path[i][0])), int(round(path[i][1])))
+        cv.line(pathImg, prev, curr, (0, 255, 255), 2)
+        cv.circle(pathImg, curr, 3, (0, 255, 255), -1)
+    if path:
+        start = (int(round(path[0][0])), int(round(path[0][1])))
+        cv.circle(pathImg, start, 4, (0, 0, 255), -1)
+        goal = (int(round(path[-1][0])), int(round(path[-1][1])))
+        cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
+    cv.imwrite(f"ressources/{level}/{name}.png", pathImg)
+
+    # Example path usage for CreatePathAccessibilityValue
+    pathValue = GD.Processing.CreatePathAccessibilityValue(path, normalizedReachMap)
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(pathValue, label="Path Accessibility Value")
+    plt.title(f"Path accessibility value curve for level {level}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Possible access to this x value")
+    plt.ylim(np.min(pathValue), np.max(pathValue))
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    # Example path usage for CreatePathAccessibilityVariance
+    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, normalizedReachMap)
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(pathVariance, label="Path Accessibility Variance")
+    plt.title(f"Path accessibility variance curve for level {level}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Variance between previous x accessiblity")
+    plt.ylim(np.min(pathVariance), np.max(pathVariance))
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+
 # Load the level image
 # level = "Niveau_6_3"
 level = "Niveau_1_1"
@@ -51,47 +93,11 @@ normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collision
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
 
-path = GD.Processing.CreateReachAStarPath((50,195),(3175,175), normalizedReach, danger ,True)
+start = (50,195)
+end = (3175,175)
 
-# Save a visualization of the computed path on the level image
-pathImg = levelImage.copy()
-for i in range(1, len(path)):
-    prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
-    curr = (int(round(path[i][0])), int(round(path[i][1])))
-    cv.line(pathImg, prev, curr, (0, 255, 255), 2)
-    cv.circle(pathImg, curr, 3, (0, 255, 255), -1)
-if path:
-    start = (int(round(path[0][0])), int(round(path[0][1])))
-    cv.circle(pathImg, start, 4, (0, 0, 255), -1)
-    goal = (int(round(path[-1][0])), int(round(path[-1][1])))
-    cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
-cv.imwrite(f"ressources/{level}/path.png", pathImg)
-
-# Example path usage for CreatePathAccessibilityValue
-pathValue = GD.Processing.CreatePathAccessibilityValue(path, normalizedReachMap)
-
-plt.figure(figsize=(10, 3))
-plt.plot(pathValue, label="Path Accessibility Value")
-plt.title(f"Path accessibility value curve for level {level}")
-plt.xlabel("Level X coordinate")
-plt.ylabel("Possible access to this x value")
-plt.ylim(np.min(pathValue), np.max(pathValue))
-plt.grid(True)
-plt.legend()
-plt.show()
-
-# Example path usage for CreatePathAccessibilityVariance
-pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, normalizedReachMap)
-
-plt.figure(figsize=(10, 3))
-plt.plot(pathVariance, label="Path Accessibility Variance")
-plt.title(f"Path accessibility variance curve for level {level}")
-plt.xlabel("Level X coordinate")
-plt.ylabel("Variance between previous x accessiblity")
-plt.ylim(np.min(pathVariance), np.max(pathVariance))
-plt.grid(True)
-plt.legend()
-plt.show()
+show_graph_for_path(GD.Processing.CreateReachAStarPath(start, end, normalizedReach, danger ,True), "path_1")
+show_graph_for_path(GD.Processing.CreateSmoothHighPath(start, end, normalizedReach, danger ,True), "path_2")
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
 enemyDetections = {}
