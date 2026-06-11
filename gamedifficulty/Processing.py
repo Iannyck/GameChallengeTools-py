@@ -413,74 +413,61 @@ cv.Mat[cv.CV_8U]:
 def CreateReachNormalizedTexture(reach: cv.Mat[cv.CV_8U], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     """
     Creates a normalized reach texture from an existing reach mask.
-    Accumulates (sums) contributions from multiple reach sources instead of taking max.
-    Final result is normalized to 0-100 scale.
-    Optimized for large levels using row/column propagation.
+    For each "ground" point where the pixel is not reachable but the pixel immediately above is,
+    assigns a value of 100 and then creates a vertical gradient upwards in the same column,
+    subtracting 1 for each pixel until reaching 0.
+    It also detects horizontal platform edges: when a non-reachable pixel is adjacent to a reachable
+    pixel on the left or right, it assigns 100 at that edge and propagates a horizontal gradient
+    towards the outside of the platform.
     :param reach: binary reach mask where 1 means reachable and 0 means not reachable
-    :param collisionMask: collision mask where 1 means solid
-    :return: normalized reach texture with accumulated values scaled to 0-100
+    :return: normalized reach texture with values from 0 to 100
     """
+    result = np.zeros(reach.shape, dtype=np.uint32)
     height, width = reach.shape
     reachable = reach > 0
-    collision = collisionMask > 0
 
-    # Build vertical seed values from ground edges - accumulate upwards
-    rowValues = np.zeros(reach.shape, dtype=np.float32)
-    seeds = np.nonzero(np.logical_and(~reachable[1:, :], reachable[:-1, :]))
-    for seed_y, seed_x in zip(seeds[0], seeds[1]):
-        y = seed_y + 1
-        value = 100.0
-        oy = y - 1
-        while oy >= 0 and value > 0:
-            if collision[oy, seed_x]:
-                break
-            rowValues[oy, seed_x] += value
-            oy -= 1
-            value -= 1.0
+    # vertical gradient from ground points
+    for x in range(width):
+        for y in range(1, height):
+            if not reachable[y, x] and reachable[y - 1, x]:
+                    value = 100
+                    for oy in range(y - 1, 0, -1):
+                        if collisionMask[oy, x]:
+                            break
+                                
+                        result[oy, x] += max(0, value)
+                        
+                        valueX = value
+                        for ox in range(x, x - value, -1):
+                            if ox < 0 or collisionMask[oy, ox]:
+                                break;
 
-    result = np.zeros((height, width), dtype=np.float32)
+                            result[oy, ox] += max(0, valueX)
 
-    # Horizontal propagation left-to-right and right-to-left along each row
-    for oy in range(height):
-        row = rowValues[oy].copy()
-        if not row.any():
-            continue
+                            for ooy in range(oy + 1, height - 1, 1):
+                                if collisionMask[ooy, ox]:
+                                    break;
+                            
+                                result[ooy, ox] += max(0, valueX)
 
-        row_ext = np.zeros(width, dtype=np.float32)
-        
-        # Left-to-right propagation
-        current = 0.0
-        for ox in range(width):
-            if collision[oy, ox]:
-                current = 0.0
-            else:
-                if current > 0:
-                    current -= 1.0
-                current = max(current, float(row[ox]))
-                row_ext[ox] += current
+                            valueX -= 1
 
-        # Right-to-left propagation
-        current = 0.0
-        for ox in range(width - 1, -1, -1):
-            if collision[oy, ox]:
-                current = 0.0
-            else:
-                if current > 0:
-                    current -= 1.0
-                current = max(current, float(row[ox]))
-                row_ext[ox] += current
+                        valueX = value
+                        for ox in range(x, x + value, 1):
+                            if ox >= width or collisionMask[oy, ox]:
+                                break;
 
-        result[oy] = row_ext
+                            result[oy, ox] += max(0, valueX)
 
-    # Downward extension from each row along columns
-    for ox in range(width):
-        current = 0.0
-        for oy in range(height):
-            if collision[oy, ox]:
-                current = 0.0
-            else:
-                current = max(current - 1.0 if current > 0 else 0, float(result[oy, ox]))
-                result[oy, ox] = current
+                            for ooy in range(oy + 1, height - 1, 1):
+                                if collisionMask[ooy, ox]:
+                                    break;
+                            
+                                result[ooy, ox] += max(valueX, 0)
+
+                            valueX -= 1
+
+                        value -= 1
 
     # Normalize to 0-100 scale
     max_val = np.max(result)
