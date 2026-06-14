@@ -163,8 +163,70 @@ def CreateEnemyPheromoneMap(enemyDetections: dict[EnemyType, list[(int, int, int
 
             pheromones += displacement.astype(np.float32) * (base_weight * scale)
 
+            
+    max_pheromones = np.max(pheromones)
+    if max_pheromones > 0:
+        pheromones /= max_pheromones
+
     return pheromones
 
+def CreateAccessibleDangerMap(collisionMask: cv.Mat[cv.CV_8U], 
+                               enemyDetections: dict, 
+                               normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
+    """
+    Crée une carte des dangers accessibles.
+    Combine les dangers statiques (trous) et les phéromones ennemies,
+    puis les filtre par l'accessibilité normalisée.
+    
+    :return: Matrice float32 normalisée (0.0 à 1.0)
+    """
+    # 1. Obtenir les dangers statiques (trous)
+    static_danger = CreateStaticDanger(collisionMask).astype(np.float32)
+    static_danger = NormalizeStaticDanger(static_danger)
+    
+    # 2. Obtenir la carte des phéromones ennemies
+    enemy_pheromones = CreateEnemyPheromoneMap(enemyDetections, collisionMask)
+        
+    combined_danger = np.maximum(static_danger, enemy_pheromones)
+    
+    # 4. Appliquer le masque d'accessibilité
+    # Seules les zones avec reach > 0 sont considérées
+    access_mask = (normalizedReach > 0).astype(np.float32)
+    accessible_danger = combined_danger * access_mask
+    
+    return accessible_danger
+
+def NormalizeStaticDanger(collisionMask: cv.Mat[cv.CV_8U]) -> np.ndarray:
+    """
+    Normalise les dangers statiques (trous).
+    Le danger est maximal au fond du trou et diminue au fur et à mesure 
+    que l'on remonte vers le niveau du sol.
+    
+    :param collisionMask: Masque où les trous sont à 1, le reste à 0
+    :param decayRate: Valeur soustraite à chaque pixel de remontée
+    :return: Matrice float32 normalisée entre 0.0 et 1.0
+    """
+    height, width = collisionMask.shape
+    # Initialisation avec float32 pour permettre les valeurs décimales
+    normalized_danger = np.zeros((height, width), dtype=np.float32)
+
+    for x in range(width):
+        # On travaille par colonne
+        col = collisionMask[:, x]
+        
+        # Trouver les zones de trous (là où col == 1)
+        # On itère de bas en haut
+        current_danger = height  # Le fond du trou est le plus dangereux
+        
+        for y in range(height - 1, -1, -1):
+            if col[y] == 1:  # Si c'est un trou
+                normalized_danger[y, x] = current_danger
+                # On diminue le danger pour le pixel au-dessus
+            current_danger = max(0.0, current_danger - 1)
+
+    result = (normalized_danger / height)
+
+    return result
 
 def CreateGoombaDisplacementTexture(detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]) -> cv.Mat[cv.CV_8U]:
     """
@@ -686,7 +748,7 @@ def CreateSmoothHighPath(start: tuple[int, int], goal: tuple[int, int], normaliz
             variance_cost = abs(reach_val - float(normalizedReach[cy, cx])) * 2.0
             
             # 3. Altitude : bonus pour les y faibles (haut de l'écran)
-            altitude_bonus = (ny / height) * 20.0 
+            altitude_bonus = (ny / height) * 500.0 
             
             step_cost = (base_cost + variance_cost + altitude_bonus) * move_cost
             tentative_g = g_score[cy, cx] + step_cost

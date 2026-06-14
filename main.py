@@ -10,8 +10,7 @@ import matplotlib.pyplot as plt
 # You can find an example implementation in python of the actual algorithm in gamedifficulty/Processing.py,
 # function CalculateDifficulty
 
-def show_graph_for_path(path: list[tuple[int, int]], name):
-    # Save a visualization of the computed path on the level image
+def save_path_img(path: list[tuple[int, int]], name):
     pathImg = levelImage.copy()
     for i in range(1, len(path)):
         prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
@@ -25,6 +24,8 @@ def show_graph_for_path(path: list[tuple[int, int]], name):
         cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
     cv.imwrite(f"ressources/{level}/{name}.png", pathImg)
 
+def show_graph_for_path(path: list[tuple[int, int]], normalizedReachMap: cv.Mat[cv.CV_8U]):
+
     # Example path usage for CreatePathAccessibilityValue
     pathValue = GD.Processing.CreatePathAccessibilityValue(path, normalizedReachMap)
 
@@ -33,7 +34,7 @@ def show_graph_for_path(path: list[tuple[int, int]], name):
     plt.title(f"Path accessibility value curve for level {level}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Possible access to this x value")
-    plt.ylim(np.min(pathValue), np.max(pathValue))
+    plt.ylim(np.min(pathValue) * 1.1, np.max(pathValue) * 1.1)
     plt.grid(True)
     plt.legend()
     plt.show()
@@ -46,7 +47,7 @@ def show_graph_for_path(path: list[tuple[int, int]], name):
     plt.title(f"Path accessibility variance curve for level {level}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Variance between previous x accessiblity")
-    plt.ylim(np.min(pathVariance), np.max(pathVariance))
+    plt.ylim(np.min(pathVariance) * 1.1, np.max(pathVariance) * 1.1)
     plt.grid(True)
     plt.legend()
     plt.show()
@@ -76,9 +77,9 @@ passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.
 collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
 
 # Create static danger map (holes)
-danger = GD.Processing.CreateStaticDanger(collisionMask)
+staticDanger = GD.Processing.CreateStaticDanger(collisionMask)
 
-cv.imwrite(f"ressources/{level}/staticDanger.png", danger * 255)
+cv.imwrite(f"ressources/{level}/staticDanger.png", staticDanger * 255)
 
 # Mark all pixels mario can (theoretically) reach
 reach = GD.Processing.CreateReachTextureFromPatternResults(
@@ -92,12 +93,6 @@ reach = GD.Processing.CreateReachTextureFromPatternResults(
 normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask)
 normalizedReach = normalizedReachMap / 100.0
 cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
-
-start = (50,195)
-end = (3175,175)
-
-show_graph_for_path(GD.Processing.CreateReachAStarPath(start, end, normalizedReach, danger ,True), "path_1")
-show_graph_for_path(GD.Processing.CreateSmoothHighPath(start, end, normalizedReach, danger ,True), "path_2")
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
 enemyDetections = {}
@@ -114,47 +109,39 @@ for enemyType in GD.Types.EnemyType.GetAllTypes():
     enemyDanger = np.maximum(ed, enemyDanger)
 
 # Merge enemy danger and static danger
-danger = np.maximum(danger, enemyDanger)
+danger = np.maximum(staticDanger, enemyDanger)
 
 # Create a pheromone map from enemy displacement zones
 enemyPheromoneMap = GD.Processing.CreateEnemyPheromoneMap(enemyDetections, collisionMask)
 cv.imwrite(f"ressources/{level}/enemy_pheromone_map.png", (np.clip(enemyPheromoneMap, 0.0, 1.0) * 255).astype(np.uint8))
 
-difficultyCurves = []
-# Calculate difficulty for different window sizes
-for wsize in [16, 32, 64, 128, 160, 224, 256, 288, 304, 320]:
-    difficultyCurve = GD.Processing.CalculateDifficulty(danger, reach, wsize)
+accessibleDanger = GD.Processing.CreateAccessibleDangerMap(
+    collisionMask,
+    enemyDetections,
+    normalizedReachMap
+)
 
-    difficultyCurves.append(difficultyCurve)
-
-    # plot
-    plt.plot(difficultyCurve)
-    plt.ylim(0, 1.2)
-    plt.title(f"Difficulty for level {level}, window size {wsize}")
-    #plt.show()
-
-# Plot all difficulty curves
-for i, curve in enumerate(difficultyCurves):
-    plt.plot(curve, label=f"Window size {i}")
-plt.legend()
-plt.ylim(0, 1)
-plt.title(f"Difficulty for level {level}")
-#plt.show()
-
-plt.imshow(cv.cvtColor(levelImage, cv.COLOR_BGR2RGB))
-plt.axis("off")
-#plt.show()
-
-# display collision as blue, danger as red, and reach as green
-demoImg = np.zeros(levelImage.shape, dtype=np.uint8)
-demoImg[:, :, 0] = collisionMask * 255
-demoImg[:, :, 1] = reach * 255
-demoImg[:, :, 2] = danger * 255
+# Optionnel : Sauvegarder pour visualiser
+cv.imwrite(f"ressources/{level}/accessible_danger_map.png", 
+           (np.clip(accessibleDanger, 0.0, 1.0) * 255).astype(np.uint8))
 
 # save reach image, collision image and danger image
 cv.imwrite(f"ressources/{level}/reach.png", reach * 255)
 cv.imwrite(f"ressources/{level}/collision.png", collisionMask * 255)
 cv.imwrite(f"ressources/{level}/danger.png", danger * 255)
 cv.imwrite(f"ressources/{level}/enemyDanger.png", enemyDanger * 255)
-# save demo image
-cv.imwrite(f"ressources/{level}/demo.png", demoImg)
+
+
+start = (50,195)
+end = (3175,175)
+
+path1 = GD.Processing.CreateReachAStarPath(start, end, normalizedReach, staticDanger ,True)
+path2 = GD.Processing.CreateSmoothHighPath(start, end, normalizedReach, staticDanger ,True)
+
+save_path_img(path1, "path_1")
+show_graph_for_path(path1, normalizedReachMap)
+show_graph_for_path(path1, accessibleDanger)
+
+save_path_img(path2, "path_2")
+show_graph_for_path(path2, normalizedReachMap)
+show_graph_for_path(path2, accessibleDanger)
