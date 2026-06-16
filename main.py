@@ -2,6 +2,7 @@ import gamedifficulty as GD
 
 import cv2 as cv
 import random
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -10,6 +11,25 @@ import matplotlib.pyplot as plt
 # from mario levels to then process into a difficulty curve.
 # You can find an example implementation in python of the actual algorithm in gamedifficulty/Processing.py,
 # function CalculateDifficulty
+
+def save_path_data(path_values: list[float], level_name, filename: str):
+    """
+    Sauvegarde les valeurs d'un chemin au format texte.
+    Format : X-coordinate (pas de 16) + valeur
+    """
+    folder = f"ressources/{level_name}"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+        
+    with open(f"{folder}/{filename}.txt", "w") as f:
+        # En-tête (basé sur votre exemple)
+        f.write("P W\n")
+        
+        # Le pas est de 16 pixels
+        for i, val in enumerate(path_values):
+            x_coord = (i + 1) * 16
+            # On écrit avec une précision standard
+            f.write(f"{x_coord} {val:.6g}\n")
 
 def draw_path(image, path, color, thickness=2):
     """Dessine un chemin sur une image donnée."""
@@ -30,9 +50,11 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
     Sauvegarde chaque chemin individuellement et une image regroupant tous les chemins.
     """
     # Génération de couleurs aléatoires uniques pour chaque chemin
-    colors = []
-    for _ in range(len(paths)):
-        colors.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    colors = [
+        (85, 111, 21),
+        (1, 61, 221),
+        (0, 2, 196)
+    ]
 
     # Création de l'image globale
     combined_img = base_image.copy()
@@ -56,6 +78,7 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
 
     # Example path usage for CreatePathAccessibilityValue
     pathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
+    save_path_data(pathValue, level, f"{pathName}_green_values")
 
     plt.figure(figsize=(10, 3))
     plt.plot(pathValue, label="Green reach value")
@@ -69,6 +92,7 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
 
     # Example path usage for CreatePathAccessibilityVariance
     pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
+    save_path_data(pathVariance, level, f"{pathName}_green_variation")
 
     plt.figure(figsize=(10, 3))
     plt.plot(pathVariance, label="Green reach variation")
@@ -82,6 +106,7 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
 
     # Example path usage for CreatePathAccessibilityValue
     pathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
+    save_path_data(pathValue, level, f"{pathName}_red_values")
 
     plt.figure(figsize=(10, 3))
     plt.plot(pathValue, label="Red reach value")
@@ -95,6 +120,7 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
 
     # Example path usage for CreatePathAccessibilityVariance
     pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
+    save_path_data(pathVariance, level, f"{pathName}_red_variation")
 
     plt.figure(figsize=(10, 3))
     plt.plot(pathVariance, label="Red reach variation")
