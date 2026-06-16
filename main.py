@@ -53,7 +53,7 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
     colors = [
         (85, 111, 21),
         (1, 61, 221),
-        (0, 2, 196)
+        (0, 2, 196),
     ]
 
     # Création de l'image globale
@@ -224,3 +224,19 @@ save_all_paths(paths_to_save, level, levelImage)
 
 show_graph_for_path(path1, normalizedReachMap, accessibleDanger, "Basic Path")
 show_graph_for_path(path2, normalizedReachMap, accessibleDanger, "Higher path")
+
+height, width = normalizedReachMap.shape
+overlay_img = np.zeros((height, width, 3), dtype=np.uint8)
+
+# Conversion des matrices normalisées (0-1) en intensités de pixels (0-255)
+# Pour s'assurer qu'elles sont bien entre 0 et 1, on peut utiliser np.clip si nécessaire
+reach_intensity = (np.clip(normalizedReachMap, 0.0, 1.0) * 255).astype(np.uint8)
+danger_intensity = (np.clip(accessibleDanger, 0.0, 1.0) * 255).astype(np.uint8)
+
+# Canal Rouge : intensité de accessibleDanger
+overlay_img[:, :, 2] = danger_intensity
+
+# Canal Vert : intensité de normalizedReachMap
+overlay_img[:, :, 1] = reach_intensity
+
+cv.imwrite(f"ressources/{level}/reach_danger_overlay.png", overlay_img)
