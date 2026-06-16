@@ -1,6 +1,7 @@
 import gamedifficulty as GD
 
 import cv2 as cv
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -10,19 +11,46 @@ import matplotlib.pyplot as plt
 # You can find an example implementation in python of the actual algorithm in gamedifficulty/Processing.py,
 # function CalculateDifficulty
 
-def save_path_img(path: list[tuple[int, int]], name):
-    pathImg = levelImage.copy()
+def draw_path(image, path, color, thickness=2):
+    """Dessine un chemin sur une image donnée."""
     for i in range(1, len(path)):
         prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
         curr = (int(round(path[i][0])), int(round(path[i][1])))
-        cv.line(pathImg, prev, curr, (0, 255, 255), 2)
-        cv.circle(pathImg, curr, 3, (0, 255, 255), -1)
+        cv.line(image, prev, curr, color, thickness)
+        cv.circle(image, curr, 3, color, -1)
+    
     if path:
         start = (int(round(path[0][0])), int(round(path[0][1])))
-        cv.circle(pathImg, start, 4, (0, 0, 255), -1)
+        cv.circle(image, start, 5, (0, 0, 255), -1) # Point de départ en rouge fixe
         goal = (int(round(path[-1][0])), int(round(path[-1][1])))
-        cv.circle(pathImg, goal, 4, (0, 255, 0), -1)
-    cv.imwrite(f"ressources/{level}/{name}.png", pathImg)
+        cv.circle(image, goal, 5, (0, 255, 0), -1)   # Point d'arrivée en vert fixe
+
+def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
+    """
+    Sauvegarde chaque chemin individuellement et une image regroupant tous les chemins.
+    """
+    # Génération de couleurs aléatoires uniques pour chaque chemin
+    colors = []
+    for _ in range(len(paths)):
+        colors.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+
+    # Création de l'image globale
+    combined_img = base_image.copy()
+
+    for idx, path in enumerate(paths):
+        color = colors[idx]
+        file_name = f"path_{idx + 1}"
+        
+        # 1. Image individuelle
+        individual_img = base_image.copy()
+        draw_path(individual_img, path, color)
+        cv.imwrite(f"ressources/{level_name}/{file_name}.png", individual_img)
+        
+        # 2. Ajout à l'image globale
+        draw_path(combined_img, path, color)
+        
+    # Sauvegarde de l'image globale
+    cv.imwrite(f"ressources/{level_name}/all_paths.png", combined_img)
 
 def show_graph_for_path(path: list[tuple[int, int]], normalizedReachMap: cv.Mat[cv.CV_8U]):
 
@@ -138,10 +166,13 @@ end = (3175,175)
 path1 = GD.Processing.CreateReachAStarPath(start, end, normalizedReach, staticDanger ,True)
 path2 = GD.Processing.CreateSmoothHighPath(start, end, normalizedReach, staticDanger ,True)
 
-save_path_img(path1, "path_1")
+paths_to_save = [path1, path2] 
+
+# Appelez la fonction après avoir défini vos paths
+save_all_paths(paths_to_save, level, levelImage)
+
 show_graph_for_path(path1, normalizedReachMap)
 show_graph_for_path(path1, accessibleDanger)
 
-save_path_img(path2, "path_2")
 show_graph_for_path(path2, normalizedReachMap)
 show_graph_for_path(path2, accessibleDanger)
