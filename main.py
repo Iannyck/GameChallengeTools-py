@@ -52,29 +52,55 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
     # Sauvegarde de l'image globale
     cv.imwrite(f"ressources/{level_name}/all_paths.png", combined_img)
 
-def show_graph_for_path(path: list[tuple[int, int]], normalizedReachMap: cv.Mat[cv.CV_8U]):
+def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], danger: cv.Mat[cv.CV_8U], pathName):
 
     # Example path usage for CreatePathAccessibilityValue
-    pathValue = GD.Processing.CreatePathAccessibilityValue(path, normalizedReachMap)
+    pathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathValue, label="Path Accessibility Value")
-    plt.title(f"Path accessibility value curve for level {level}")
+    plt.plot(pathValue, label="Green reach value")
+    plt.title(f"Green value graph for {pathName}")
     plt.xlabel("Level X coordinate")
-    plt.ylabel("Possible access to this x value")
-    plt.ylim(np.min(pathValue) * 1.1, np.max(pathValue) * 1.1)
+    plt.ylabel("Green reach value")
+    plt.ylim(0.0, 1.1)
     plt.grid(True)
     plt.legend()
     plt.show()
 
     # Example path usage for CreatePathAccessibilityVariance
-    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, normalizedReachMap)
+    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathVariance, label="Path Accessibility Variance")
-    plt.title(f"Path accessibility variance curve for level {level}")
+    plt.plot(pathVariance, label="Green reach variation")
+    plt.title(f"Green variation graph for {pathName}")
     plt.xlabel("Level X coordinate")
-    plt.ylabel("Variance between previous x accessiblity")
+    plt.ylabel("Green reach variation")
+    plt.ylim(np.min(pathVariance) * 1.1, np.max(pathVariance) * 1.1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    # Example path usage for CreatePathAccessibilityValue
+    pathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(pathValue, label="Red reach value")
+    plt.title(f"Red value graph for {pathName}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Red reach value")
+    plt.ylim(0.0, 1.1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    # Example path usage for CreatePathAccessibilityVariance
+    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(pathVariance, label="Red reach variation")
+    plt.title(f"Red variation graph for {pathName}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Red reach variation")
     plt.ylim(np.min(pathVariance) * 1.1, np.max(pathVariance) * 1.1)
     plt.grid(True)
     plt.legend()
@@ -119,8 +145,7 @@ reach = GD.Processing.CreateReachTextureFromPatternResults(
 )
 
 normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask)
-normalizedReach = normalizedReachMap / 100.0
-cv.imwrite(f"ressources/{level}/normalized_reach.png", (normalizedReach * 255).astype(np.uint8))
+cv.imwrite(f"ressources/{level}/normalized_reach.png", (((normalizedReachMap * 100.0).astype(np.uint8) / 100) * 255).astype(np.uint8))
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
 enemyDetections = {}
@@ -163,16 +188,13 @@ cv.imwrite(f"ressources/{level}/enemyDanger.png", enemyDanger * 255)
 start = (50,195)
 end = (3175,175)
 
-path1 = GD.Processing.CreateReachAStarPath(start, end, normalizedReach, staticDanger ,True)
-path2 = GD.Processing.CreateSmoothHighPath(start, end, normalizedReach, staticDanger ,True)
+path1 = GD.Processing.CreateReachAStarPath(start, end, normalizedReachMap, staticDanger ,True)
+path2 = GD.Processing.CreateSmoothHighPath(start, end, normalizedReachMap, staticDanger ,True)
 
 paths_to_save = [path1, path2] 
 
 # Appelez la fonction après avoir défini vos paths
 save_all_paths(paths_to_save, level, levelImage)
 
-show_graph_for_path(path1, normalizedReachMap)
-show_graph_for_path(path1, accessibleDanger)
-
-show_graph_for_path(path2, normalizedReachMap)
-show_graph_for_path(path2, accessibleDanger)
+show_graph_for_path(path1, normalizedReachMap, accessibleDanger, "Basic Path")
+show_graph_for_path(path2, normalizedReachMap, accessibleDanger, "Higher path")

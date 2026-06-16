@@ -542,12 +542,11 @@ def CreateReachNormalizedTexture(reach: cv.Mat, collisionMask: cv.Mat) -> cv.Mat
     # On convertit en float pour la normalisation d'origine
     result = result_compiled.astype(np.float32)
 
-    # Normalize to 0-100 scale
     max_val = np.max(result)
     if max_val > 0:
-        result = (result / max_val) * 100.0
+        result = (result / max_val)
 
-    return result.astype(np.uint8)
+    return result
 
 
 def CreatePathAccessibilityVariance(path: list[tuple[int, int]], normalizedReach: cv.Mat[cv.CV_8U]) -> np.ndarray:
@@ -596,6 +595,11 @@ def CreatePathAccessibilityValue(path: list[tuple[int, int]], normalizedReach: c
             valeur = normalizedReach[curr_y, curr_x]
            
             variance_by_x[curr_x] = float(valeur) / 100.0
+
+    
+    max_val = np.max(variance_by_x)
+    if max_val > 0:
+        variance_by_x = (variance_by_x / max_val)
 
     return variance_by_x
 
