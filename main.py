@@ -45,15 +45,14 @@ def draw_path(image, path, color, thickness=2):
         goal = (int(round(path[-1][0])), int(round(path[-1][1])))
         cv.circle(image, goal, 5, (0, 255, 0), -1)   # Point d'arrivée en vert fixe
 
-def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
+def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, type_image):
     """
     Sauvegarde chaque chemin individuellement et une image regroupant tous les chemins.
     """
     # Génération de couleurs aléatoires uniques pour chaque chemin
     colors = [
-        (85, 111, 21),
-        (1, 61, 221),
-        (0, 2, 196),
+        (209, 177, 16),
+        (209, 16, 132),
     ]
 
     # Création de l'image globale
@@ -61,7 +60,7 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
 
     for idx, path in enumerate(paths):
         color = colors[idx]
-        file_name = f"path_{idx + 1}"
+        file_name = f"path_{idx + 1}_{type_image}"
         
         # 1. Image individuelle
         individual_img = base_image.copy()
@@ -72,16 +71,16 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image):
         draw_path(combined_img, path, color)
         
     # Sauvegarde de l'image globale
-    cv.imwrite(f"ressources/{level_name}/all_paths.png", combined_img)
+    cv.imwrite(f"ressources/{level_name}/all_paths_{type_image}.png", combined_img)
 
 def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], danger: cv.Mat[cv.CV_8U], pathName):
 
     # Example path usage for CreatePathAccessibilityValue
-    pathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
-    save_path_data(pathValue, level, f"{pathName}_green_values")
+    greenPathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
+    save_path_data(greenPathValue, level, f"{pathName}_green_values")
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathValue, label="Green reach value")
+    plt.plot(greenPathValue, label="Green reach value")
     plt.title(f"Green value graph for {pathName}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Green reach value")
@@ -91,25 +90,35 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
     plt.show()
 
     # Example path usage for CreatePathAccessibilityVariance
-    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
-    save_path_data(pathVariance, level, f"{pathName}_green_variation")
+    greenPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
+    save_path_data(greenPathVariance, level, f"{pathName}_green_variation")
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathVariance, label="Green reach variation")
+    plt.plot(greenPathVariance, label="Green reach variation")
     plt.title(f"Green variation graph for {pathName}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Green reach variation")
-    plt.ylim(np.min(pathVariance) * 1.1, np.max(pathVariance) * 1.1)
+    plt.ylim(np.min(greenPathVariance) * 1.1, np.max(greenPathVariance) * 1.1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(greenPathVariance, label="Green reach variation")
+    plt.title(f"Green variation graph for {pathName}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Green reach variation")
+    plt.ylim(np.min(greenPathVariance) * 1.1, np.max(greenPathVariance) * 1.1)
     plt.grid(True)
     plt.legend()
     plt.show()
 
     # Example path usage for CreatePathAccessibilityValue
-    pathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
-    save_path_data(pathValue, level, f"{pathName}_red_values")
+    redPathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
+    save_path_data(redPathValue, level, f"{pathName}_red_values")
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathValue, label="Red reach value")
+    plt.plot(redPathValue, label="Red reach value")
     plt.title(f"Red value graph for {pathName}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Red reach value")
@@ -119,15 +128,42 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
     plt.show()
 
     # Example path usage for CreatePathAccessibilityVariance
-    pathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
-    save_path_data(pathVariance, level, f"{pathName}_red_variation")
+    redPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
+    save_path_data(redPathVariance, level, f"{pathName}_red_variation")
 
     plt.figure(figsize=(10, 3))
-    plt.plot(pathVariance, label="Red reach variation")
+    plt.plot(redPathVariance, label="Red reach variation")
     plt.title(f"Red variation graph for {pathName}")
     plt.xlabel("Level X coordinate")
     plt.ylabel("Red reach variation")
-    plt.ylim(np.min(pathVariance) * 1.1, np.max(pathVariance) * 1.1)
+    plt.ylim(np.min(redPathVariance) * 1.1, np.max(redPathVariance) * 1.1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+    
+    mergeValue = greenPathValue * redPathValue
+    save_path_data(mergeValue, level, f"{pathName}_red_and_green_value")
+    
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(mergeValue, label="Green and Red values")
+    plt.title(f"Green and Red values graph for {pathName}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Green and Red values")
+    plt.ylim(0.0, 1.1)
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+    
+    mergeVariation = greenPathVariance * redPathVariance
+    save_path_data(mergeVariation, level, f"{pathName}_red_and_green_variation")
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(mergeVariation, label="Green and Red variation")
+    plt.title(f"Green and Red variation graph for {pathName}")
+    plt.xlabel("Level X coordinate")
+    plt.ylabel("Green and Red variation")
+    plt.ylim(np.min(mergeVariation) * 1.1, np.max(mergeVariation) * 1.1)
     plt.grid(True)
     plt.legend()
     plt.show()
@@ -217,13 +253,27 @@ end = (3175,175)
 path1 = GD.Processing.CreateReachAStarPath(start, end, normalizedReachMap, staticDanger ,True)
 path2 = GD.Processing.CreateSmoothHighPath(start, end, normalizedReachMap, staticDanger ,True)
 
-paths_to_save = [path1, path2] 
+path3 = []
 
-# Appelez la fonction après avoir défini vos paths
-save_all_paths(paths_to_save, level, levelImage)
+#path3 += GD.Processing.CreateSmoothHighPath((50, 195), (130, 165), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((131, 165), (399, 165), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((400, 165), (465, 160), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((466, 160), (625, 145), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((626, 145), (750, 125), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((751, 125), (1030, 110), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1031, 110), (1235, 130), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1236, 130), (1285, 65), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1286, 65), (1515, 65), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1516, 65), (1600, 130), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1601, 130), (1700, 130), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1701, 130), (1750, 65), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1751, 65), (1800, 130), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1801, 130), (1900, 130), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1901, 130), (1940, 65), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((1941, 65), (2040, 65), normalizedReachMap, staticDanger ,True)
+#path3 += GD.Processing.CreateSmoothHighPath((2041, 65), (3175, 175), normalizedReachMap, staticDanger ,True)
 
-show_graph_for_path(path1, normalizedReachMap, accessibleDanger, "Basic Path")
-show_graph_for_path(path2, normalizedReachMap, accessibleDanger, "Higher path")
+#print(path3)
 
 height, width = normalizedReachMap.shape
 overlay_img = np.zeros((height, width, 3), dtype=np.uint8)
@@ -238,5 +288,15 @@ overlay_img[:, :, 2] = danger_intensity
 
 # Canal Vert : intensité de normalizedReachMap
 overlay_img[:, :, 1] = reach_intensity
+
+paths_to_save = [path1, path2] 
+
+# Appelez la fonction après avoir défini vos paths
+save_all_paths(paths_to_save, level, overlay_img, "overlay")
+save_all_paths(paths_to_save, level, levelImage, "level")
+
+show_graph_for_path(path1, normalizedReachMap, accessibleDanger, "Basic Path")
+show_graph_for_path(path2, normalizedReachMap, accessibleDanger, "Higher path")
+#show_graph_for_path(path3, normalizedReachMap, accessibleDanger, "Complex path")
 
 cv.imwrite(f"ressources/{level}/reach_danger_overlay.png", overlay_img)
