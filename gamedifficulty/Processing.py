@@ -4,6 +4,7 @@ import numpy as np
 from gamedifficulty.Constants import *
 from gamedifficulty.Types import EnemyType
 from gamedifficulty.Detection import DetectPatternMulti
+from concurrent.futures import ThreadPoolExecutor
 
 
 def CreateMaskFromPatternResult(detections: list[(int, int, int, int)], imageSize: (int, int)) -> cv.Mat[cv.CV_8U]:
@@ -697,6 +698,109 @@ def CreateReachAStarPath(start: tuple[int, int], goal: tuple[int, int], normaliz
                 came_from[(nx, ny)] = (cx, cy)
 
     return []
+def _solve_single_segment(start: tuple[int, int], goal: tuple[int, int], normalizedReach: np.ndarray, neighbors: list[tuple[int, int, float]]) -> list[tuple[int, int]]:
+    """
+    Calcule le chemin A* pour un unique segment. 
+    Cette fonction isolée est exécutée en parallèle dans un thread séparé.
+    """
+    height, width = normalizedReach.shape
+    sx, sy = int(round(start[0])), int(round(start[1]))
+    gx, gy = int(round(goal[0])), int(round(goal[1]))
+
+    if not (0 <= sx < width and 0 <= sy < height and 0 <= gx < width and 0 <= gy < height):
+        return []
+    if normalizedReach[sy, sx] == 0 or normalizedReach[gy, gx] == 0:
+        return []
+
+    g_score = np.full((height, width), np.inf, dtype=np.float32)
+    g_score[sy, sx] = 0.0
+    
+    came_from = {}
+    open_heap = []
+    counter = 0
+    
+    # Heuristique Manhattan standard
+    h_start = float(abs(sx - gx) + abs(sy - gy))
+    heapq.heappush(open_heap, (h_start, counter, (sx, sy)))
+    
+    max_reach_scale = 100.0 if np.max(normalizedReach) > 2 else 1.0
+
+    while open_heap:
+        _, _, (cx, cy) = heapq.heappop(open_heap)
+
+        if (cx, cy) == (gx, gy):
+            segment_path = []
+            curr = (gx, gy)
+            while curr != (sx, sy):
+                segment_path.append(curr)
+                curr = came_from[curr]
+            segment_path.reverse()
+            return segment_path
+
+        for dx, dy, move_cost in neighbors:
+            nx, ny = cx + dx, cy + dy
+            
+            if not (0 <= nx < width and 0 <= ny < height) or normalizedReach[ny, nx] == 0:
+                continue
+
+            # Coût multi-critère (Reach max + lissage de variance)
+            reach_val = float(normalizedReach[ny, nx])
+            base_cost = (max_reach_scale + 1.0) - reach_val
+            variance_cost = abs(reach_val - float(normalizedReach[cy, cx])) * 2.0
+            
+            step_cost = (base_cost + variance_cost) * move_cost
+            tentative_g = g_score[cy, cx] + step_cost
+
+            if tentative_g < g_score[ny, nx]:
+                g_score[ny, nx] = tentative_g
+                came_from[(nx, ny)] = (cx, cy)
+                counter += 1
+                h_next = float(abs(nx - gx) + abs(ny - gy))
+                heapq.heappush(open_heap, (tentative_g + h_next, counter, (nx, ny)))
+
+    return []
+
+
+def CreateMultiPointAStarPath(points: list[tuple[int, int]], normalizedReach: cv.Mat, allowDiagonal: bool = True) -> list[tuple[int, int]]:
+    """
+    Calcule un chemin A* passant par une liste ordonnée de points en parallélisant 
+    le calcul des segments intermédiaires.
+    """
+    if normalizedReach is None or len(points) < 2:
+        return []
+
+    # Préparation des voisins (statique pour éviter la réallocation dans les threads)
+    neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0)]
+    if allowDiagonal:
+        neighbors += [(-1, -1, 1.4142), (-1, 1, 1.4142), (1, -1, 1.4142), (1, 1, 1.4142)]
+
+    # Préparation des couples de segments (P_i -> P_i+1)
+    segments = [(points[i], points[i+1]) for i in range(len(points) - 1)]
+    
+    # Exécution parallèle du calcul de chaque segment
+    # Note : Le GIL de Python est relâché pendant les grosses opérations NumPy si nécessaire, 
+    # mais ici l'A* pur bénéficie surtout du multi-threading CPU sur les longs chemins.
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(_solve_single_segment, start, goal, normalizedReach, neighbors)
+            for start, goal in segments
+        ]
+        results = [f.result() for f in futures]
+
+    # Reconstruction et chaînage du chemin final
+    complete_path = []
+    
+    # On ajoute le tout premier point de départ global
+    first_start = points[0]
+    complete_path.append((int(round(first_start[0])), int(round(first_start[1]))))
+
+    for segment_path in results:
+        # Si un seul segment n'a pas trouvé de solution, tout le chemin échoue
+        if not segment_path:
+            return []
+        complete_path.extend(segment_path)
+
+    return complete_path
 
 def CreateSmoothHighPath(start: tuple[int, int], goal: tuple[int, int], normalizedReach: cv.Mat, dangerMask: cv.Mat = None, allowDiagonal: bool = True) -> list[tuple[int, int]]:
     height, width = normalizedReach.shape
