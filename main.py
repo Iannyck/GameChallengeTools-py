@@ -11,29 +11,31 @@ import matplotlib.pyplot as plt
 # You can find an example implementation in python of the actual algorithm in gamedifficulty/Processing.py,
 # function CalculateDifficulty
 
+
 def save_path_data(path_values: list[float], level_name, filename: str):
     """
     Sauvegarde les valeurs d'un chemin au format texte.
-    Format : X-coordinate (pas de 16) + valeur
+    Format : X-coordinate (échantillonné tous les 16 pixels) + valeur
     """
     folder = f"ressources/{level_name}"
     if not os.path.exists(folder):
         os.makedirs(folder)
-        
+
     with open(f"{folder}/{filename}.txt", "w") as f:
         # En-tête (basé sur votre exemple)
         f.write("P W\n")
-        
-        # Le pas est de 16 pixels
-        for i, val in enumerate(path_values):
-            x_coord = (i + 1) * 16
-            # On écrit avec une précision standard
+
+        # On parcourt les données avec un pas de 16
+        for x_coord in range(0, len(path_values), 16):
+            val = path_values[x_coord]
+            # L'index x_coord correspond maintenant à la vraie position X sur l'image
             f.write(f"{x_coord} {val:.6g}\n")
+
 
 def draw_path(image, path, color, thickness=2):
     """
-    Dessine un chemin opaque sur l'image. Si le chemin repasse sur des pixels 
-    déjà colorés (différents du fond noir/transparent ou de l'image de base), 
+    Dessine un chemin opaque sur l'image. Si le chemin repasse sur des pixels
+    déjà colorés (différents du fond noir/transparent ou de l'image de base),
     les couleurs fusionnent sans transparence sur le reste du tracé.
     """
     if not path:
@@ -48,7 +50,7 @@ def draw_path(image, path, color, thickness=2):
         curr = (int(round(path[i][0])), int(round(path[i][1])))
         cv.line(layer, prev, curr, color, thickness)
         cv.circle(layer, curr, 3, color, -1)
-    
+
     # Points de départ (Rouge) et d'arrivée (Vert) fixes
     start = (int(round(path[0][0])), int(round(path[0][1])))
     cv.circle(layer, start, 5, (0, 0, 255), -1)
@@ -58,7 +60,7 @@ def draw_path(image, path, color, thickness=2):
     # 3. Créer des masques pour isoler les zones
     # Masque des pixels dessinés par le nouveau chemin
     new_path_mask = cv.cvtColor(layer, cv.COLOR_BGR2GRAY) > 0
-    
+
     # Masque des pixels de l'image de destination qui ont déjà été modifiés par un ancien chemin
     # Note : On suppose ici que le fond "vide" de base ne correspond pas exactement à une couleur de chemin.
     # Pour être précis, on détecte ce qui n'est pas noir sur le calque accumulé ou modifié.
@@ -66,7 +68,9 @@ def draw_path(image, path, color, thickness=2):
     return layer
 
 
-def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, type_image):
+def save_all_paths(
+    paths: list[list[tuple[int, int]]], level_name, base_image, type_image
+):
     """
     Sauvegarde chaque chemin individuellement et une image regroupant tous les chemins.
     Pleine couleur partout, sauf aux intersections exactes où les couleurs se mélangent.
@@ -85,10 +89,10 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, t
     for idx, path in enumerate(paths):
         color = colors[idx % len(colors)]
         file_name = f"path_{idx + 1}_{type_image}"
-        
+
         individual_img = base_image.copy()
         path_layer = np.zeros_like(individual_img)
-        
+
         # Dessin standard direct
         for i in range(1, len(path)):
             prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
@@ -96,9 +100,21 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, t
             cv.line(path_layer, prev, curr, color, 2)
             cv.circle(path_layer, curr, 3, color, -1)
         if path:
-            cv.circle(path_layer, (int(round(path[0][0])), int(round(path[0][1]))), 5, (0, 0, 255), -1)
-            cv.circle(path_layer, (int(round(path[-1][0])), int(round(path[-1][1]))), 5, (0, 255, 0), -1)
-            
+            cv.circle(
+                path_layer,
+                (int(round(path[0][0])), int(round(path[0][1]))),
+                5,
+                (0, 0, 255),
+                -1,
+            )
+            cv.circle(
+                path_layer,
+                (int(round(path[-1][0])), int(round(path[-1][1]))),
+                5,
+                (0, 255, 0),
+                -1,
+            )
+
         # Application sur le fond du niveau
         mask = cv.cvtColor(path_layer, cv.COLOR_BGR2GRAY) > 0
         individual_img[mask] = path_layer[mask]
@@ -110,7 +126,7 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, t
 
     for idx, path in enumerate(paths):
         color = colors[idx % len(colors)]
-        
+
         # On génère le calque isolé pour ce tracé spécifique
         current_layer = np.zeros_like(base_image)
         for i in range(1, len(path)):
@@ -119,13 +135,25 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, t
             cv.line(current_layer, prev, curr, color, 2)
             cv.circle(current_layer, curr, 3, color, -1)
         if path:
-            cv.circle(current_layer, (int(round(path[0][0])), int(round(path[0][1]))), 5, (0, 0, 255), -1)
-            cv.circle(current_layer, (int(round(path[-1][0])), int(round(path[-1][1]))), 5, (0, 255, 0), -1)
+            cv.circle(
+                current_layer,
+                (int(round(path[0][0])), int(round(path[0][1]))),
+                5,
+                (0, 0, 255),
+                -1,
+            )
+            cv.circle(
+                current_layer,
+                (int(round(path[-1][0])), int(round(path[-1][1]))),
+                5,
+                (0, 255, 0),
+                -1,
+            )
 
         # Détection des masques binaires
         mask_current = cv.cvtColor(current_layer, cv.COLOR_BGR2GRAY) > 0
         mask_existing = cv.cvtColor(paths_accumulation_layer, cv.COLOR_BGR2GRAY) > 0
-        
+
         # Intersection : Pixels où les deux calques se superposent
         intersection_mask = mask_current & mask_existing
         # Simple apport : Pixels du nouveau tracé qui arrivent sur une zone vide
@@ -136,17 +164,27 @@ def save_all_paths(paths: list[list[tuple[int, int]]], level_name, base_image, t
 
         # Application 2 : Zone de superposition -> On fusionne les couleurs (Moyenne 50/50)
         if np.any(intersection_mask):
-            blended_pixels = cv.addWeighted(paths_accumulation_layer, 0.5, current_layer, 0.5, 0)
-            paths_accumulation_layer[intersection_mask] = blended_pixels[intersection_mask]
+            blended_pixels = cv.addWeighted(
+                paths_accumulation_layer, 0.5, current_layer, 0.5, 0
+            )
+            paths_accumulation_layer[intersection_mask] = blended_pixels[
+                intersection_mask
+            ]
 
     # Enfin, on fusionne le calque d'accumulation final sur l'image de fond du niveau de Mario
     combined_img = base_image.copy()
     final_mask = cv.cvtColor(paths_accumulation_layer, cv.COLOR_BGR2GRAY) > 0
     combined_img[final_mask] = paths_accumulation_layer[final_mask]
-    
+
     cv.imwrite(f"{folder}/all_paths_{type_image}.png", combined_img)
 
-def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], danger: cv.Mat[cv.CV_8U], pathName):
+
+def show_graph_for_path(
+    path: list[tuple[int, int]],
+    reach: cv.Mat[cv.CV_8U],
+    danger: cv.Mat[cv.CV_8U],
+    pathName,
+):
 
     # Example path usage for CreatePathAccessibilityValue
     greenPathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
@@ -203,10 +241,9 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
     plt.grid(True)
     plt.legend()
     plt.savefig(f"ressources/{level}/{pathName}_red_variation")
-    
+
     mergeValue = greenPathValue * redPathValue
     save_path_data(mergeValue, level, f"{pathName}_red_and_green_value")
-    
 
     plt.figure(figsize=(10, 3))
     plt.plot(mergeValue, label="Green and Red values")
@@ -217,7 +254,7 @@ def show_graph_for_path(path: list[tuple[int, int]], reach: cv.Mat[cv.CV_8U], da
     plt.grid(True)
     plt.legend()
     plt.savefig(f"ressources/{level}/{pathName}_red_and_green_value")
-    
+
     mergeVariation = greenPathVariance * redPathVariance
     save_path_data(mergeVariation, level, f"{pathName}_red_and_green_variation")
 
@@ -243,17 +280,30 @@ levelImage = cv.imread(f"ressources/{level}/level.png")
 spriteSet = GD.Classes.SpriteSet("ressources/Sprite")
 
 # Detect all ground and pipe tiles that form the collisions of the level.
-collisionPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetCollisionsTextures(), 0.85)
-collisionPositions += GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetPipesTextures(), 0.85)
+collisionPositions = GD.Detection.DetectPatternMulti(
+    levelImage, spriteSet.GetCollisionsTextures(), 0.85
+)
+collisionPositions += GD.Detection.DetectPatternMulti(
+    levelImage, spriteSet.GetPipesTextures(), 0.85
+)
 
-jumpBoardPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetJumpBoardTextures(), 0.85)
+jumpBoardPositions = GD.Detection.DetectPatternMulti(
+    levelImage, spriteSet.GetJumpBoardTextures(), 0.85
+)
 collisionPositions += jumpBoardPositions
 
 # moving platforms must be processed a bit differently.
-passthroughPositions = GD.Processing.CreateMovingPlatform(levelImage, spriteSet.GetPlatformsTextures(), spriteSet.GetBalancePointsLeft(), spriteSet.GetBalancePointsRight())
+passthroughPositions = GD.Processing.CreateMovingPlatform(
+    levelImage,
+    spriteSet.GetPlatformsTextures(),
+    spriteSet.GetBalancePointsLeft(),
+    spriteSet.GetBalancePointsRight(),
+)
 
 # Transform all positions into an image mask
-collisionMask = GD.Processing.CreateMaskFromPatternResult(collisionPositions, levelImage.shape[:2])
+collisionMask = GD.Processing.CreateMaskFromPatternResult(
+    collisionPositions, levelImage.shape[:2]
+)
 
 # Create static danger map (holes)
 staticDanger = GD.Processing.CreateStaticDanger(collisionMask)
@@ -265,23 +315,30 @@ reach = GD.Processing.CreateReachTextureFromPatternResults(
     levelImage.shape[:2],
     [
         (collisionPositions + passthroughPositions, int(GD.Constants.jumpHeight)),
-        (jumpBoardPositions, int(GD.Constants.jumpBoardHeight))
+        (jumpBoardPositions, int(GD.Constants.jumpBoardHeight)),
     ],
 )
 
 normalizedReachMap = GD.Processing.CreateReachNormalizedTexture(reach, collisionMask)
-cv.imwrite(f"ressources/{level}/normalized_reach.png", (((normalizedReachMap * 100.0).astype(np.uint8) / 100) * 255).astype(np.uint8))
+cv.imwrite(
+    f"ressources/{level}/normalized_reach.png",
+    (((normalizedReachMap * 100.0).astype(np.uint8) / 100) * 255).astype(np.uint8),
+)
 
 enemyDanger = np.zeros(levelImage.shape[:2], dtype=np.uint8)
 enemyDetections = {}
 # Create enemy danger map and collect enemy detections per type
 for enemyType in GD.Types.EnemyType.GetAllTypes():
     # Find all enemies in the level
-    enemyPositions = GD.Detection.DetectPatternMulti(levelImage, spriteSet.GetEnemyTextures(enemyType), 0.85)
+    enemyPositions = GD.Detection.DetectPatternMulti(
+        levelImage, spriteSet.GetEnemyTextures(enemyType), 0.85
+    )
     enemyDetections[enemyType] = enemyPositions
 
     # Find their possible positions
-    ed = GD.Processing.CreateDisplacementTexture(enemyType, enemyPositions, collisionMask)
+    ed = GD.Processing.CreateDisplacementTexture(
+        enemyType, enemyPositions, collisionMask
+    )
 
     # merge static and enemy danger
     enemyDanger = np.maximum(ed, enemyDanger)
@@ -290,18 +347,23 @@ for enemyType in GD.Types.EnemyType.GetAllTypes():
 danger = np.maximum(staticDanger, enemyDanger)
 
 # Create a pheromone map from enemy displacement zones
-enemyPheromoneMap = GD.Processing.CreateEnemyPheromoneMap(enemyDetections, collisionMask)
-cv.imwrite(f"ressources/{level}/enemy_pheromone_map.png", (np.clip(enemyPheromoneMap, 0.0, 1.0) * 255).astype(np.uint8))
+enemyPheromoneMap = GD.Processing.CreateEnemyPheromoneMap(
+    enemyDetections, collisionMask
+)
+cv.imwrite(
+    f"ressources/{level}/enemy_pheromone_map.png",
+    (np.clip(enemyPheromoneMap, 0.0, 1.0) * 255).astype(np.uint8),
+)
 
 accessibleDanger = GD.Processing.CreateAccessibleDangerMap(
-    collisionMask,
-    enemyDetections,
-    normalizedReachMap
+    collisionMask, enemyDetections, normalizedReachMap
 )
 
 # Optionnel : Sauvegarder pour visualiser
-cv.imwrite(f"ressources/{level}/accessible_danger_map.png", 
-           (np.clip(accessibleDanger, 0.0, 1.0) * 255).astype(np.uint8))
+cv.imwrite(
+    f"ressources/{level}/accessible_danger_map.png",
+    (np.clip(accessibleDanger, 0.0, 1.0) * 255).astype(np.uint8),
+)
 
 # save reach image, collision image and danger image
 cv.imwrite(f"ressources/{level}/reach.png", reach * 255)
@@ -310,84 +372,92 @@ cv.imwrite(f"ressources/{level}/danger.png", danger * 255)
 cv.imwrite(f"ressources/{level}/enemyDanger.png", enemyDanger * 255)
 
 
-start = (50,199)
-end = (3175,175)
+start = (50, 199)
+end = (3175, 175)
 
 paths_to_save = [
-    GD.Processing.CreateMultiPointAStarPath([
-        (50, 199),
-        (465, 167),
-        (520, 199),
-        (625, 151),
-        (690, 199),
-        (767, 135),
-        (840, 199),
-        (943, 135),
-        (1100, 199),
-        (1120, 175),
-        (1160, 199),
-        (1375, 199),
-        (1400, 175),
-        (1425, 199),
-        (2200, 135),
-        (2225, 115),
-        (2245, 135),
-        (2320, 199),
-        (2445, 135),
-        (2460, 115),
-        (2485, 135),
-        (3175, 175),
-    ], normalizedReachMap, True),
-    GD.Processing.CreateMultiPointAStarPath([
-        (50, 199),
-        (265, 135),
-        (295, 110),
-        (325, 135),
-        (415, 120),
-        (465, 167),
-        (520, 199),
-        (625, 151),
-        (690, 90),
-        (767, 135),
-        (840, 199),
-        (943, 135),
-        (980, 75),
-        (1030, 119),
-        (1100, 199),
-        (1120, 175),
-        (1160, 199),
-        (1235, 135),
-        (1285, 71),
-        (1405, 71),
-        (1430, 45),
-        (1460, 71),
-        (1515, 71),
-        (1600, 135),
-        (1700, 135),
-        (1750, 71),
-        (1800, 135),
-        (1900, 135),
-        (1940, 71),
-        (1982, 71),
-        (2010, 45),
-        (2050, 71),
-        (2100, 71),
-        (2200, 135),
-        (2225, 115),
-        (2245, 135),
-        (2320, 199),
-        (2445, 135),
-        (2460, 115),
-        (2485, 135),
-        (2625, 165),
-        (2700, 135),
-        (2880, 160),
-        (3030, 71),
-        (3175, 175),
-    ], normalizedReachMap, True)
+    GD.Processing.CreateMultiPointAStarPath(
+        [
+            (50, 199),
+            (465, 167),
+            (520, 199),
+            (625, 151),
+            (690, 199),
+            (767, 135),
+            (840, 199),
+            (943, 135),
+            (1100, 199),
+            (1120, 175),
+            (1160, 199),
+            (1375, 199),
+            (1400, 175),
+            (1425, 199),
+            (2200, 135),
+            (2225, 115),
+            (2245, 135),
+            (2320, 199),
+            (2445, 135),
+            (2460, 115),
+            (2485, 135),
+            (3175, 175),
+        ],
+        normalizedReachMap,
+        True,
+    ),
+    GD.Processing.CreateMultiPointAStarPath(
+        [
+            (50, 199),
+            (265, 135),
+            (295, 110),
+            (325, 135),
+            (415, 120),
+            (465, 167),
+            (520, 199),
+            (625, 151),
+            (690, 90),
+            (767, 135),
+            (840, 199),
+            (943, 135),
+            (980, 75),
+            (1030, 119),
+            (1100, 199),
+            (1120, 175),
+            (1160, 199),
+            (1235, 135),
+            (1285, 71),
+            (1405, 71),
+            (1430, 45),
+            (1460, 71),
+            (1515, 71),
+            (1600, 135),
+            (1700, 135),
+            (1750, 71),
+            (1800, 135),
+            (1900, 135),
+            (1940, 71),
+            (1982, 71),
+            (2010, 45),
+            (2050, 71),
+            (2100, 71),
+            (2200, 135),
+            (2225, 115),
+            (2245, 135),
+            (2320, 199),
+            (2445, 135),
+            (2460, 115),
+            (2485, 135),
+            (2625, 165),
+            (2700, 135),
+            (2880, 160),
+            (3030, 71),
+            (3175, 175),
+        ],
+        normalizedReachMap,
+        True,
+    ),
 ]
 
-#print(path3)
+# print(path3)
 
 height, width = normalizedReachMap.shape
 overlay_img = np.zeros((height, width, 3), dtype=np.uint8)
@@ -410,6 +480,8 @@ save_all_paths(paths_to_save, level, levelImage, "level")
 path_name = ["Basic Path", "Higher Path"]
 
 for i in range(len(paths_to_save)):
-    show_graph_for_path(paths_to_save[i], normalizedReachMap, accessibleDanger, path_name[i])
+    show_graph_for_path(
+        paths_to_save[i], normalizedReachMap, accessibleDanger, path_name[i]
+    )
 
 cv.imwrite(f"ressources/{level}/reach_danger_overlay.png", overlay_img)
