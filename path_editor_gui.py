@@ -1,4 +1,6 @@
 import tkinter as tk
+import json
+import os
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 
@@ -73,10 +75,10 @@ class PathEditor:
         if not filepath:
             return
 
+        self.image_path = filepath  # <-- On sauvegarde le chemin du fichier
         self.image = Image.open(filepath)
         self.tk_image = ImageTk.PhotoImage(self.image)
 
-        # Ajuster la zone de scroll à la taille réelle de l'image
         self.canvas.config(scrollregion=(0, 0, self.image.width, self.image.height))
 
         self.all_paths = []
@@ -139,26 +141,26 @@ class PathEditor:
             messagebox.showwarning("Attention", "Aucun point n'a été placé !")
             return
 
-        # Formattage du texte pour s'intégrer directement dans main.py
-        code = "paths_to_save = [\n"
-        for path in paths_to_export:
-            code += "    GD.Processing.CreateMultiPointAStarPath([\n"
-            for x, y in path:
-                code += f"        ({x}, {y}),\n"
-            code += "    ], normalizedReachMap, True),\n"
-        code += "]\n"
+        if not hasattr(self, "image_path") or not self.image_path:
+            messagebox.showerror("Erreur", "Aucune image n'a été chargée.")
+            return
 
-        # Affichage dans la console
-        print("\n" + "=" * 60)
-        print("COPIE LE CODE CI-DESSOUS DANS TON main.py :")
-        print("=" * 60)
-        print(code)
-        print("=" * 60 + "\n")
+        # Récupération du dossier où se trouve l'image du level
+        level_dir = os.path.dirname(self.image_path)
+        json_file_path = os.path.join(level_dir, "paths.json")
 
-        messagebox.showinfo(
-            "Succès",
-            "Le code de tes paths a été généré dans la console !\n\nCopie-le et colle-le dans ton fichier main.py.",
-        )
+        try:
+            # Sauvegarde en format JSON
+            with open(json_file_path, "w") as f:
+                json.dump(paths_to_export, f, indent=4)
+
+            messagebox.showinfo(
+                "Succès", f"Tes chemins ont été sauvegardés dans :\n{json_file_path}"
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Erreur", f"Impossible de sauvegarder le fichier JSON :\n{e}"
+            )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import gamedifficulty as GD
 
+import json
 import cv2 as cv
 import os
 import numpy as np
@@ -371,91 +372,31 @@ cv.imwrite(f"ressources/{level}/collision.png", collisionMask * 255)
 cv.imwrite(f"ressources/{level}/danger.png", danger * 255)
 cv.imwrite(f"ressources/{level}/enemyDanger.png", enemyDanger * 255)
 
+json_path = f"ressources/{level}/paths.json"
+raw_paths = []
 
-start = (50, 199)
-end = (3175, 175)
+if os.path.exists(json_path):
+    with open(json_path, "r") as f:
+        raw_paths = json.load(f)
+else:
+    print(
+        f"⚠️ Aucun fichier {json_path} trouvé. Lance l'interface graphique pour en créer un."
+    )
 
-paths_to_save = [
-    GD.Processing.CreateMultiPointAStarPath(
-        [
-            (50, 199),
-            (465, 167),
-            (520, 199),
-            (625, 151),
-            (690, 199),
-            (767, 135),
-            (840, 199),
-            (943, 135),
-            (1100, 199),
-            (1120, 175),
-            (1160, 199),
-            (1375, 199),
-            (1400, 175),
-            (1425, 199),
-            (2200, 135),
-            (2225, 115),
-            (2245, 135),
-            (2320, 199),
-            (2445, 135),
-            (2460, 115),
-            (2485, 135),
-            (3175, 175),
-        ],
-        normalizedReachMap,
-        True,
-    ),
-    GD.Processing.CreateMultiPointAStarPath(
-        [
-            (50, 199),
-            (265, 135),
-            (295, 110),
-            (325, 135),
-            (415, 120),
-            (465, 167),
-            (520, 199),
-            (625, 151),
-            (690, 90),
-            (767, 135),
-            (840, 199),
-            (943, 135),
-            (980, 75),
-            (1030, 119),
-            (1100, 199),
-            (1120, 175),
-            (1160, 199),
-            (1235, 135),
-            (1285, 71),
-            (1405, 71),
-            (1430, 45),
-            (1460, 71),
-            (1515, 71),
-            (1600, 135),
-            (1700, 135),
-            (1750, 71),
-            (1800, 135),
-            (1900, 135),
-            (1940, 71),
-            (1982, 71),
-            (2010, 45),
-            (2050, 71),
-            (2100, 71),
-            (2200, 135),
-            (2225, 115),
-            (2245, 135),
-            (2320, 199),
-            (2445, 135),
-            (2460, 115),
-            (2485, 135),
-            (2625, 165),
-            (2700, 135),
-            (2880, 160),
-            (3030, 71),
-            (3175, 175),
-        ],
-        normalizedReachMap,
-        True,
-    ),
-]
+paths_to_save = []
+
+for path_coords in raw_paths:
+    # Le JSON stocke des listes [x, y], la fonction attend des tuples (x, y)
+    formatted_points = [(point[0], point[1]) for point in path_coords]
+
+    # Calcul du pathfinding pour ces points
+    computed_path = GD.Processing.CreateMultiPointAStarPath(
+        formatted_points, normalizedReachMap, True
+    )
+
+    # On ne sauvegarde que si le chemin a pu être résolu
+    if computed_path:
+        paths_to_save.append(computed_path)
 
 # print(path3)
 
