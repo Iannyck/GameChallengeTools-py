@@ -5,19 +5,11 @@ import json
 import os
 import cv2 as cv
 import numpy as np
-
-# --- AJOUTE CES DEUX LIGNES ICI ---
 import matplotlib
 
 matplotlib.use("Agg")
-# ----------------------------------
-
 import matplotlib.pyplot as plt
 import gamedifficulty as GD
-
-# ==========================================
-# FONCTIONS D'ANALYSE (Ex-main.py)
-# ==========================================
 
 
 def save_path_data(path_values: list[float], level_name, filename: str):
@@ -40,6 +32,14 @@ def draw_path(image, path, color, thickness=2):
     for i in range(1, len(path)):
         prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
         curr = (int(round(path[i][0])), int(round(path[i][1])))
+
+        dist = np.sqrt((curr[0] - prev[0]) ** 2 + (curr[1] - prev[1]) ** 2)
+        if dist > 150:
+
+            cv.circle(layer, prev, 6, (255, 255, 255), 2)
+            cv.circle(layer, curr, 6, (255, 255, 255), 2)
+            continue
+
         cv.line(layer, prev, curr, color, thickness)
         cv.circle(layer, curr, 3, color, -1)
 
@@ -68,8 +68,14 @@ def save_all_paths(
         for i in range(1, len(path)):
             prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
             curr = (int(round(path[i][0])), int(round(path[i][1])))
+
+            dist = np.sqrt((curr[0] - prev[0]) ** 2 + (curr[1] - prev[1]) ** 2)
+            if dist > 150:
+                continue
+
             cv.line(path_layer, prev, curr, color, 2)
             cv.circle(path_layer, curr, 3, color, -1)
+
         if path:
             cv.circle(
                 path_layer,
@@ -95,11 +101,18 @@ def save_all_paths(
     for idx, path in enumerate(paths):
         color = colors[idx % len(colors)]
         current_layer = np.zeros_like(base_image)
+
         for i in range(1, len(path)):
             prev = (int(round(path[i - 1][0])), int(round(path[i - 1][1])))
             curr = (int(round(path[i][0])), int(round(path[i][1])))
+
+            dist = np.sqrt((curr[0] - prev[0]) ** 2 + (curr[1] - prev[1]) ** 2)
+            if dist > 150:
+                continue
+
             cv.line(current_layer, prev, curr, color, 2)
             cv.circle(current_layer, curr, 3, color, -1)
+
         if path:
             cv.circle(
                 current_layer,
@@ -139,7 +152,7 @@ def save_all_paths(
 def show_graph_for_path(
     path: list[tuple[int, int]], reach: cv.Mat, danger: cv.Mat, pathName, level
 ):
-    # Green reach value
+
     greenPathValue = GD.Processing.CreatePathAccessibilityValue(path, reach)
     save_path_data(greenPathValue, level, f"{pathName}_green_values")
     plt.figure(figsize=(10, 3))
@@ -151,9 +164,8 @@ def show_graph_for_path(
     plt.grid(True)
     plt.legend()
     plt.savefig(f"ressources/{level}/{pathName}_green_values")
-    plt.close()  # Important pour libérer la mémoire lors des appels multiples
+    plt.close()
 
-    # Green reach variation
     greenPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
     save_path_data(greenPathVariance, level, f"{pathName}_green_variation")
     plt.figure(figsize=(10, 3))
@@ -167,7 +179,6 @@ def show_graph_for_path(
     plt.savefig(f"ressources/{level}/{pathName}_green_variation")
     plt.close()
 
-    # Red danger value
     redPathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
     save_path_data(redPathValue, level, f"{pathName}_red_values")
     plt.figure(figsize=(10, 3))
@@ -181,7 +192,6 @@ def show_graph_for_path(
     plt.savefig(f"ressources/{level}/{pathName}_red_values")
     plt.close()
 
-    # Red danger variation
     redPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
     save_path_data(redPathVariance, level, f"{pathName}_red_variation")
     plt.figure(figsize=(10, 3))
@@ -195,7 +205,6 @@ def show_graph_for_path(
     plt.savefig(f"ressources/{level}/{pathName}_red_variation")
     plt.close()
 
-    # Merged Value
     mergeValue = greenPathValue * redPathValue
     save_path_data(mergeValue, level, f"{pathName}_red_and_green_value")
     plt.figure(figsize=(10, 3))
@@ -209,7 +218,6 @@ def show_graph_for_path(
     plt.savefig(f"ressources/{level}/{pathName}_red_and_green_value")
     plt.close()
 
-    # Merged Variation
     mergeVariation = greenPathVariance * redPathVariance
     save_path_data(mergeVariation, level, f"{pathName}_red_and_green_variation")
     plt.figure(figsize=(10, 3))
@@ -314,13 +322,23 @@ def run_analysis(level):
             raw_paths = json.load(f)
 
     paths_to_save = []
-    for path_coords in raw_paths:
-        formatted_points = [(point[0], point[1]) for point in path_coords]
-        computed_path = GD.Processing.CreateMultiPointAStarPath(
-            formatted_points, normalizedReachMap, True
-        )
-        if computed_path:
-            paths_to_save.append(computed_path)
+    for path_segments in raw_paths:
+        full_path = []
+        for segment_coords in path_segments:
+            if len(segment_coords) < 2:
+                print("⚠️ Un segment a moins de 2 points, ignoré.")
+                continue
+
+            formatted_points = [(pt[0], pt[1]) for pt in segment_coords]
+            computed_segment = GD.Processing.CreateMultiPointAStarPath(
+                formatted_points, normalizedReachMap, True
+            )
+
+            if computed_segment:
+                full_path.extend(computed_segment)
+
+        if full_path:
+            paths_to_save.append(full_path)
 
     height, width = normalizedReachMap.shape
     overlay_img = np.zeros((height, width, 3), dtype=np.uint8)
@@ -333,7 +351,6 @@ def run_analysis(level):
     save_all_paths(paths_to_save, level, overlay_img, "overlay")
     save_all_paths(paths_to_save, level, levelImage, "level")
 
-    # Si tu as plus de 2 chemins tu peux générer dynamiquement le nom
     for i in range(len(paths_to_save)):
         path_name = f"Path_{i+1}"
         show_graph_for_path(
@@ -344,11 +361,6 @@ def run_analysis(level):
     print("--- Analyse terminée avec succès ! ---")
 
 
-# ==========================================
-# INTERFACE GRAPHIQUE (Ex-path_editor_gui.py)
-# ==========================================
-
-
 class PathEditor:
     def __init__(self, root, level_name):
         self.root = root
@@ -356,7 +368,7 @@ class PathEditor:
         self.root.title(f"Mario Level - Éditeur de Path ({self.level_name})")
 
         self.all_paths = []
-        self.current_path = []
+        self.current_segments = [[]]
         self.image = None
         self.tk_image = None
         self.image_path = f"ressources/{self.level_name}/level.png"
@@ -364,8 +376,6 @@ class PathEditor:
         self.colors = ["red", "blue", "green", "orange", "purple", "cyan", "magenta"]
 
         self.setup_ui()
-
-        # Charge l'image directement après le lancement
         self.root.after(100, self.load_level_data)
 
     def setup_ui(self):
@@ -375,6 +385,14 @@ class PathEditor:
         tk.Button(control_frame, text="➕ Nouveau Chemin", command=self.next_path).pack(
             side=tk.LEFT, padx=10, pady=10
         )
+
+        tk.Button(
+            control_frame,
+            text="🚪 Ajouter une Téléportation (Tuyau)",
+            command=self.add_teleport,
+            bg="#2196F3",
+            fg="white",
+        ).pack(side=tk.LEFT, padx=10, pady=10)
         tk.Button(
             control_frame, text="↩️ Annuler dernier point", command=self.undo_point
         ).pack(side=tk.LEFT, padx=10, pady=10)
@@ -393,12 +411,10 @@ class PathEditor:
         canvas_frame.pack(fill=tk.BOTH, expand=True)
 
         self.canvas = tk.Canvas(canvas_frame, bg="gray", cursor="crosshair")
-
         hbar = tk.Scrollbar(
             canvas_frame, orient=tk.HORIZONTAL, command=self.canvas.xview
         )
         hbar.pack(side=tk.BOTTOM, fill=tk.X)
-
         vbar = tk.Scrollbar(canvas_frame, orient=tk.VERTICAL, command=self.canvas.yview)
         vbar.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -417,20 +433,20 @@ class PathEditor:
         self.tk_image = ImageTk.PhotoImage(self.image)
         self.canvas.config(scrollregion=(0, 0, self.image.width, self.image.height))
 
-        # Chargement automatique des chemins s'ils existent déjà
         json_file_path = f"ressources/{self.level_name}/paths.json"
         if os.path.exists(json_file_path):
             try:
                 with open(json_file_path, "r") as f:
-                    self.all_paths = json.load(f)
-                    # Conversion des listes en tuples pour Tkinter
+
+                    raw_data = json.load(f)
                     self.all_paths = [
-                        [(pt[0], pt[1]) for pt in path] for path in self.all_paths
+                        [[(pt[0], pt[1]) for pt in seg] for seg in path]
+                        for path in raw_data
                     ]
             except Exception as e:
                 print(f"Impossible de charger l'ancien json : {e}")
 
-        self.current_path = []
+        self.current_segments = [[]]
         self.redraw_paths()
 
     def on_click(self, event):
@@ -438,46 +454,80 @@ class PathEditor:
             return
         x = int(self.canvas.canvasx(event.x))
         y = int(self.canvas.canvasy(event.y))
-        self.current_path.append((x, y))
+
+        self.current_segments[-1].append((x, y))
         self.redraw_paths()
 
+    def add_teleport(self):
+        if self.current_segments[-1]:
+
+            self.current_segments.append([])
+            self.redraw_paths()
+
     def next_path(self):
-        if self.current_path:
-            self.all_paths.append(self.current_path)
-            self.current_path = []
+
+        if any(self.current_segments):
+            self.all_paths.append(self.current_segments)
+            self.current_segments = [[]]
             self.redraw_paths()
 
     def undo_point(self):
-        if self.current_path:
-            self.current_path.pop()
-            self.redraw_paths()
+        if not self.current_segments:
+            return
+
+        if self.current_segments[-1]:
+            self.current_segments[-1].pop()
+        elif len(self.current_segments) > 1:
+            self.current_segments.pop()
+            if self.current_segments[-1]:
+                self.current_segments[-1].pop()
+
+        self.redraw_paths()
 
     def redraw_paths(self):
         self.canvas.delete("all")
         if self.tk_image:
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
 
-        for idx, path in enumerate(self.all_paths):
+        for idx, path_segments in enumerate(self.all_paths):
             color = self.colors[idx % len(self.colors)]
-            self.draw_path(path, color)
+            self.draw_path_segments(path_segments, color)
 
         current_color = self.colors[len(self.all_paths) % len(self.colors)]
-        self.draw_path(self.current_path, current_color)
+        self.draw_path_segments(self.current_segments, current_color)
 
-    def draw_path(self, path, color):
+    def draw_path_segments(self, segments, color):
         r = 3
-        for i, (x, y) in enumerate(path):
-            self.canvas.create_oval(
-                x - r, y - r, x + r, y + r, fill=color, outline=color
-            )
-            if i > 0:
-                px, py = path[i - 1]
-                self.canvas.create_line(px, py, x, y, fill=color, width=2)
+        last_pt = None
+        for seg in segments:
+            if not seg:
+                continue
+
+            if last_pt:
+                self.canvas.create_line(
+                    last_pt[0],
+                    last_pt[1],
+                    seg[0][0],
+                    seg[0][1],
+                    fill=color,
+                    dash=(4, 4),
+                    width=2,
+                )
+
+            for i, (x, y) in enumerate(seg):
+                self.canvas.create_oval(
+                    x - r, y - r, x + r, y + r, fill=color, outline=color
+                )
+                if i > 0:
+                    px, py = seg[i - 1]
+                    self.canvas.create_line(px, py, x, y, fill=color, width=2)
+
+            last_pt = seg[-1]
 
     def save_and_run(self):
         paths_to_export = list(self.all_paths)
-        if self.current_path:
-            paths_to_export.append(self.current_path)
+        if any(self.current_segments):
+            paths_to_export.append(self.current_segments)
 
         if not paths_to_export:
             messagebox.showwarning("Attention", "Aucun point n'a été placé !")
@@ -488,36 +538,26 @@ class PathEditor:
         try:
             with open(json_file_path, "w") as f:
                 json.dump(paths_to_export, f, indent=4)
-            print(f"[OK] Fichier sauvegardé : {json_file_path}")
 
             self.run_btn.config(
                 text="Analyse en cours...", bg="orange", state=tk.DISABLED
             )
-            self.root.update()  # Rafraîchit l'interface pour afficher le bouton en orange
+            self.root.update()
 
-            # Appel direct de la fonction de calcul
             run_analysis(self.level_name)
 
-            messagebox.showinfo(
-                "Succès",
-                "L'analyse a été effectuée avec succès !\nLes images et graphiques ont été mis à jour.",
-            )
-
+            messagebox.showinfo("Succès", "L'analyse a été effectuée avec succès !")
         except Exception as e:
-            messagebox.showerror(
-                "Erreur", f"Une erreur est survenue durant l'analyse :\n{e}"
-            )
-
+            messagebox.showerror("Erreur", f"Une erreur est survenue :\n{e}")
         finally:
-            # Remet le bouton à son état normal une fois terminé
             self.run_btn.config(
                 text="💾 Sauvegarder & Lancer l'analyse", bg="#4CAF50", state=tk.NORMAL
             )
 
 
 if __name__ == "__main__":
-    # Paramètre global du niveau (tu peux le modifier ici selon tes besoins)
-    TARGET_LEVEL = "Niveau_8_3"
+
+    TARGET_LEVEL = "Niveau_1_1"
 
     root = tk.Tk()
     root.geometry("1400x700")

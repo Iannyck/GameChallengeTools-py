@@ -161,7 +161,6 @@ def CreateEnemyPheromoneMap(
         if base_weight <= 0:
             continue
 
-        # Process each enemy individually so overlaps accumulate and scale by area
         for detection in detections:
             singleDetection = [detection]
             displacement = CreateDisplacementTexture(
@@ -171,10 +170,8 @@ def CreateEnemyPheromoneMap(
             if area <= 0.0:
                 continue
 
-            # area fraction in level
             area_frac = area / total_pixels
 
-            # smaller area -> larger scale; clamp the scale
             scale = 1.0 + (1.0 - area_frac) * scaleFactor
             if scale > maxScale:
                 scale = maxScale
@@ -200,17 +197,14 @@ def CreateAccessibleDangerMap(
 
     :return: Matrice float32 normalisée (0.0 à 1.0)
     """
-    # 1. Obtenir les dangers statiques (trous)
+
     static_danger = CreateStaticDanger(collisionMask).astype(np.float32)
     static_danger = NormalizeStaticDanger(static_danger)
 
-    # 2. Obtenir la carte des phéromones ennemies
     enemy_pheromones = CreateEnemyPheromoneMap(enemyDetections, collisionMask)
 
     combined_danger = np.maximum(static_danger, enemy_pheromones)
 
-    # 4. Appliquer le masque d'accessibilité
-    # Seules les zones avec reach > 0 sont considérées
     access_mask = (normalizedReach > 0).astype(np.float32)
     accessible_danger = combined_danger * access_mask
 
@@ -228,21 +222,19 @@ def NormalizeStaticDanger(collisionMask: cv.Mat[cv.CV_8U]) -> np.ndarray:
     :return: Matrice float32 normalisée entre 0.0 et 1.0
     """
     height, width = collisionMask.shape
-    # Initialisation avec float32 pour permettre les valeurs décimales
+
     normalized_danger = np.zeros((height, width), dtype=np.float32)
 
     for x in range(width):
-        # On travaille par colonne
+
         col = collisionMask[:, x]
 
-        # Trouver les zones de trous (là où col == 1)
-        # On itère de bas en haut
-        current_danger = height  # Le fond du trou est le plus dangereux
+        current_danger = height
 
         for y in range(height - 1, -1, -1):
-            if col[y] == 1:  # Si c'est un trou
+            if col[y] == 1:
                 normalized_danger[y, x] = current_danger
-                # On diminue le danger pour le pixel au-dessus
+
             current_danger = max(0.0, current_danger - 1)
 
     result = normalized_danger / height
@@ -287,7 +279,6 @@ def CreateGoombaDisplacementTexture(
 
             result[y : y + sizeY, x : x + sizeX] = 1
 
-            # if any of the pixels outside of image break
             if (
                 y < 0
                 or y + sizeY >= collisionMask.shape[0]
@@ -327,7 +318,6 @@ def CreateRedKoopaDisplacementTexture(
             ):
                 break
 
-            # fall until on solid ground
             while (
                 current_y + sizeY < levelHeight
                 and not collisionMask[
@@ -469,7 +459,6 @@ def CreateLakituDisplacementTexture(
 def CreatePiranaPlantDisplacementTexture(
     detections: list[(int, int, int, int)], collisionMask: cv.Mat[cv.CV_8U]
 ) -> cv.Mat[cv.CV_8U]:
-    # they don't move
 
     result = np.zeros(collisionMask.shape, dtype=np.uint8)
 
@@ -491,9 +480,8 @@ def CalculateHorizontalExpansion(jumpHeight: int, baseJumpHeight: int) -> int:
     if baseJumpHeight <= 0:
         return 0
 
-    # Expansion proportional to sqrt of height ratio
     expansion_factor = np.sqrt(jumpHeight / baseJumpHeight)
-    # expansion is the additional distance compared to base jump
+
     expansion = int(jumpHalfWidth * (expansion_factor - 1))
     return expansion
 
@@ -513,23 +501,20 @@ def CreateReachTextureFromPatternResults(
     """
     result = np.zeros(shape, dtype=np.uint8)
 
-    # If no expansions provided, use 0 for all groups
     if horizontalExpansions is None:
         horizontalExpansions = [0] * len(patternGroups)
 
     for (detections, height), expansion in zip(patternGroups, horizontalExpansions):
         for y, x, sizeY, sizeX in detections:
-            # Apply vertical reach (above the platform)
+
             reach_y_start = max(y - height, 0)
             reach_y_end = y
 
-            # Apply horizontal expansion (left and right of the platform)
             reach_x_start = max(x - expansion, 0)
             reach_x_end = min(x + sizeX + expansion, shape[1])
 
             result[reach_y_start:reach_y_end, reach_x_start:reach_x_end] = 1
 
-    # Remove the platforms themselves from reach (can't be inside them)
     for detections, _ in patternGroups:
         for y, x, sizeY, sizeX in detections:
             result[y : y + sizeY, x : x + sizeX] = 0
@@ -556,10 +541,9 @@ from numba import njit
 
 @njit
 def _compute_reach_loops(reachable, collisionMask, height, width):
-    # On garde le type uint32 pour éviter les dépassements lors des accumulations (+=)
+
     result = np.zeros((height, width), dtype=np.uint32)
 
-    # vertical gradient from ground points
     for x in range(width):
         for y in range(1, height):
             if not reachable[y, x] and reachable[y - 1, x]:
@@ -570,7 +554,6 @@ def _compute_reach_loops(reachable, collisionMask, height, width):
 
                     result[oy, x] += max(0, value)
 
-                    # Propagation Gauche
                     valueX = value
                     for ox in range(x, x - value, -1):
                         if ox < 0 or collisionMask[oy, ox]:
@@ -587,7 +570,6 @@ def _compute_reach_loops(reachable, collisionMask, height, width):
 
                         valueX -= 1
 
-                    # Propagation Droite
                     valueX = value
                     for ox in range(x, x + value, 1):
                         if ox >= width or collisionMask[oy, ox]:
@@ -616,10 +598,8 @@ def CreateReachNormalizedTexture(reach: cv.Mat, collisionMask: cv.Mat) -> cv.Mat
     height, width = reach.shape
     reachable = reach > 0
 
-    # Appel de la fonction compilée à la volée (JIT)
     result_compiled = _compute_reach_loops(reachable, collisionMask, height, width)
 
-    # On convertit en float pour la normalisation d'origine
     result = result_compiled.astype(np.float32)
 
     max_val = np.max(result)
@@ -661,6 +641,10 @@ def CreatePathAccessibilityVariance(
         return float(np.mean(roi)) if roi.size > 0 else 0.0
 
     for (prev_x, prev_y), (x, y) in zip(path, path[1:]):
+        dist = np.sqrt((x - prev_x) ** 2 + (y - prev_y) ** 2)
+        if dist > 150:
+            continue
+
         current_x = int(round(x))
         current_y = int(round(y))
         previous_x = int(round(prev_x))
@@ -706,7 +690,7 @@ def CreatePathAccessibilityValue(
         curr_y = int(round(y))
 
         if 0 <= curr_x < width and 0 <= curr_y < height:
-            # Calcul de la bounding box avec ancrage en bas à droite
+
             start_x = max(0, curr_x - mario_width + 1)
             end_x = min(width, curr_x + 1)
             start_y = max(0, curr_y - mario_height + 1)
@@ -771,7 +755,6 @@ def CreateReachAStarPath(
     if normalizedReach[sy, sx] == 0:
         return []
 
-    # SÉCURITÉ : Empêcher l'algorithme de démarrer s'il est déjà dans un trou
     if sy >= height - 1 or (dangerMask is not None and dangerMask[sy, sx] > 0):
         return []
 
@@ -811,14 +794,11 @@ def CreateReachAStarPath(
             if normalizedReach[ny, nx] == 0:
                 continue
 
-            # Si le mouvement n'est pas vers le haut, Mario subit la gravité.
             if dy >= 0:
                 ny = fall_to_lowest(nx, ny)
                 if normalizedReach[ny, nx] == 0:
                     continue
 
-                # NOUVELLE CONDITION : Invalider ce déplacement si l'atterrissage se fait
-                # sur la dernière ligne de l'image (trou) ou dans une zone de static_danger.
                 if ny >= height - 1 or (
                     dangerMask is not None and dangerMask[ny, nx] > 0
                 ):
@@ -865,7 +845,6 @@ def _solve_single_segment(
     open_heap = []
     counter = 0
 
-    # Heuristique Manhattan standard
     h_start = float(abs(sx - gx) + abs(sy - gy))
     heapq.heappush(open_heap, (h_start, counter, (sx, sy)))
 
@@ -892,7 +871,6 @@ def _solve_single_segment(
             ):
                 continue
 
-            # Coût multi-critère (Reach max + lissage de variance)
             reach_val = float(normalizedReach[ny, nx])
             base_cost = (max_reach_scale + 1.0) - reach_val
             variance_cost = abs(reach_val - float(normalizedReach[cy, cx])) * 2.0
@@ -920,7 +898,6 @@ def CreateMultiPointAStarPath(
     if normalizedReach is None or len(points) < 2:
         return []
 
-    # Préparation des voisins (statique pour éviter la réallocation dans les threads)
     neighbors = [(-1, 0, 1.0), (1, 0, 1.0), (0, -1, 1.0), (0, 1, 1.0)]
     if allowDiagonal:
         neighbors += [
@@ -930,12 +907,8 @@ def CreateMultiPointAStarPath(
             (1, 1, 1.4142),
         ]
 
-    # Préparation des couples de segments (P_i -> P_i+1)
     segments = [(points[i], points[i + 1]) for i in range(len(points) - 1)]
 
-    # Exécution parallèle du calcul de chaque segment
-    # Note : Le GIL de Python est relâché pendant les grosses opérations NumPy si nécessaire,
-    # mais ici l'A* pur bénéficie surtout du multi-threading CPU sur les longs chemins.
     with ThreadPoolExecutor() as executor:
         futures = [
             executor.submit(
@@ -945,15 +918,13 @@ def CreateMultiPointAStarPath(
         ]
         results = [f.result() for f in futures]
 
-    # Reconstruction et chaînage du chemin final
     complete_path = []
 
-    # On ajoute le tout premier point de départ global
     first_start = points[0]
     complete_path.append((int(round(first_start[0])), int(round(first_start[1]))))
 
     for segment_path in results:
-        # Si un seul segment n'a pas trouvé de solution, tout le chemin échoue
+
         if not segment_path:
             return []
         complete_path.extend(segment_path)
@@ -979,17 +950,16 @@ def CreateSmoothHighPath(
 
     sy, gy = fall_to_lowest(sx, sy), fall_to_lowest(gx, gy)
 
-    # g_score stocke (score, y_precedent) pour calculer la variance de transition
     g_score = np.full((height, width), np.inf, dtype=np.float32)
-    # On stocke aussi la valeur de reach précédente pour calculer la variance
+
     prev_reach = np.full((height, width), -1.0, dtype=np.float32)
 
     g_score[sy, sx] = 0.0
     came_from = {}
-    open_heap = [(0.0, 0, (sx, sy))]  # (priority, counter, coord)
+    open_heap = [(0.0, 0, (sx, sy))]
 
     def heuristic(x, y):
-        # Heuristique classique
+
         return float(abs(x - gx) + abs(y - gy))
 
     while open_heap:
@@ -1020,15 +990,12 @@ def CreateSmoothHighPath(
                 ):
                     continue
 
-            # --- CALCUL DU COÛT ÉVOLUÉ ---
             reach_val = float(normalizedReach[ny, nx])
-            # 1. Base : difficulté (on veut éviter les zones à 0, donc 100-reach)
+
             base_cost = 101.0 - reach_val
 
-            # 2. Variance : différence avec la case précédente (pénalise les changements brusques)
             variance_cost = abs(reach_val - float(normalizedReach[cy, cx])) * 2.0
 
-            # 3. Altitude : bonus pour les y faibles (haut de l'écran)
             altitude_bonus = (ny / height) * 500.0
 
             step_cost = (base_cost + variance_cost + altitude_bonus) * move_cost
@@ -1037,7 +1004,7 @@ def CreateSmoothHighPath(
             if tentative_g < g_score[ny, nx]:
                 g_score[ny, nx] = tentative_g
                 came_from[(nx, ny)] = (cx, cy)
-                # Priorité = g + h
+
                 heapq.heappush(
                     open_heap, (tentative_g + heuristic(nx, ny), id((nx, ny)), (nx, ny))
                 )
@@ -1048,7 +1015,7 @@ def CreateSmoothHighPath(
 def MergeDetection(
     detections: list[(int, int, int, int)],
 ) -> list[(int, int, int, int)]:
-    # Sort by x-axis (left coordinate)
+
     detections.sort(key=lambda box: box[1])
 
     merged = []
@@ -1062,7 +1029,6 @@ def MergeDetection(
 
         last_y, last_x, last_h, last_w = merged[-1]
 
-        # Merge if on same horizontal line (exact y and height) and x-ranges overlap
         if y == last_y and h == last_h and x <= last_x + last_w:
             new_x = min(last_x, x)
             new_w = max(last_x + last_w, x + w) - new_x
@@ -1079,22 +1045,19 @@ def CreateMovingPlatform(
     balancePointsLeft: list[cv.Mat],
     balancePointsRight: list[cv.Mat],
 ) -> list[(int, int, int, int)]:
-    # find balance points
+
     pointsLeft = DetectPatternMulti(levelImage, balancePointsLeft)
     pointsRight = DetectPatternMulti(levelImage, balancePointsRight)
 
     pointsLeft.sort(key=lambda box: box[0])
     pointsRight.sort(key=lambda box: box[0])
 
-    # find platforms
     platforms = DetectPatternMulti(levelImage, platformImages)
 
-    # merge platforms that are next to each other
     mergedPlatforms = MergeDetection(platforms)
 
     links = []
 
-    # link each left point to its right point
     for i, left in enumerate(pointsLeft):
         for i, right in enumerate(pointsRight):
             if left[1] < right[1] and left[0] == right[0]:
@@ -1102,7 +1065,6 @@ def CreateMovingPlatform(
                 pointsRight.remove(right)
                 break
 
-    # sort from top to bottom
     mergedPlatforms.sort(key=lambda box: box[0])
 
     def FindPlatformBelow(point):
@@ -1115,7 +1077,6 @@ def CreateMovingPlatform(
 
     result = []
 
-    # find for each link which platform is under the right and what platform is under the left
     for left, right in links:
         platformLeft = FindPlatformBelow(left)
         platformRight = FindPlatformBelow(right)
@@ -1131,7 +1092,6 @@ def CreateMovingPlatform(
                 result.append((y, xl, hl, wl))
                 result.append((y, xr, hr, wr))
 
-    # add missing moving platforms
     for platform in mergedPlatforms:
         if platform not in result:
             result.append(platform)
@@ -1155,17 +1115,12 @@ def CalculateDifficulty(
 
     for x in range(0, pheromones.shape[1] - windowSize):
 
-        # Returns a 2D array the size of the window where element is true if pixel can be reached
         reachable = reach[:, x : x + windowSize] > 0
 
-        # Returns a 2D array the size of the window where element is true if pixel is dangerous
         dangerous = pheromones[:, x : x + windowSize] > 0
 
-        # np.logical_and returns the array of pixels that are dangerous and can be reached.
-        # we then use np.sum to count the number (true is one and false is zero)
         count = np.sum(np.logical_and(reachable, dangerous))
 
-        # edge case
         if np.isnan(float(np.sum(reachable))):
             result += [0]
             continue
