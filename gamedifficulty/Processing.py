@@ -926,7 +926,7 @@ def CreateMultiPointAStarPath(
     for segment_path in results:
 
         if not segment_path:
-            return []
+            continue
         complete_path.extend(segment_path)
 
     return complete_path

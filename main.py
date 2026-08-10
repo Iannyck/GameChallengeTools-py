@@ -3,6 +3,7 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import json
 import os
+import glob
 import cv2 as cv
 import numpy as np
 import matplotlib
@@ -13,7 +14,7 @@ import gamedifficulty as GD
 
 
 def save_path_data(path_values: list[float], level_name, filename: str):
-    folder = f"ressources/{level_name}"
+    folder = f"ressources/{level_name}/path_results"
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -55,7 +56,7 @@ def save_all_paths(
     paths: list[list[tuple[int, int]]], level_name, base_image, type_image
 ):
     colors = [(0, 0, 255), (209, 177, 16), (209, 16, 132)]
-    folder = f"ressources/{level_name}"
+    folder = f"ressources/{level_name}/path_results"
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -149,6 +150,38 @@ def save_all_paths(
     cv.imwrite(f"{folder}/all_paths_{type_image}.png", combined_img)
 
 
+def _sanitize_paths(raw_data):
+    def is_number(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    clean_paths = []
+    if not isinstance(raw_data, list):
+        return clean_paths
+
+    for path in raw_data:
+        if not isinstance(path, list):
+            continue
+        clean_path = []
+        for seg in path:
+            if not isinstance(seg, list):
+                continue
+            clean_seg = []
+            for pt in seg:
+                if (
+                    isinstance(pt, (list, tuple))
+                    and len(pt) >= 2
+                    and is_number(pt[0])
+                    and is_number(pt[1])
+                ):
+                    clean_seg.append((pt[0], pt[1]))
+            if clean_seg:
+                clean_path.append(clean_seg)
+        if clean_path:
+            clean_paths.append(clean_path)
+
+    return clean_paths
+
+
 def show_graph_for_path(
     path: list[tuple[int, int]], reach: cv.Mat, danger: cv.Mat, pathName, level
 ):
@@ -163,7 +196,7 @@ def show_graph_for_path(
     plt.ylim(0.0, 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_green_values")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_green_values")
     plt.close()
 
     greenPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, reach)
@@ -176,7 +209,7 @@ def show_graph_for_path(
     plt.ylim(np.min(greenPathVariance) * 1.1, np.max(greenPathVariance) * 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_green_variation")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_green_variation")
     plt.close()
 
     redPathValue = GD.Processing.CreatePathAccessibilityValue(path, danger)
@@ -189,7 +222,7 @@ def show_graph_for_path(
     plt.ylim(0.0, 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_red_values")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_red_values")
     plt.close()
 
     redPathVariance = GD.Processing.CreatePathAccessibilityVariance(path, danger)
@@ -202,7 +235,7 @@ def show_graph_for_path(
     plt.ylim(np.min(redPathVariance) * 1.1, np.max(redPathVariance) * 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_red_variation")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_red_variation")
     plt.close()
 
     mergeValue = greenPathValue * redPathValue
@@ -215,7 +248,7 @@ def show_graph_for_path(
     plt.ylim(0.0, 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_red_and_green_value")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_red_and_green_value")
     plt.close()
 
     mergeVariation = greenPathVariance * redPathVariance
@@ -228,7 +261,7 @@ def show_graph_for_path(
     plt.ylim(np.min(mergeVariation) * 1.1, np.max(mergeVariation) * 1.1)
     plt.grid(True)
     plt.legend()
-    plt.savefig(f"ressources/{level}/{pathName}_red_and_green_variation")
+    plt.savefig(f"ressources/{level}/path_results/{pathName}_red_and_green_variation")
     plt.close()
 
 
@@ -321,6 +354,9 @@ def run_analysis(level):
         with open(json_path, "r") as f:
             raw_paths = json.load(f)
 
+    # Sanitize loaded paths to ensure points are valid (no None values)
+    raw_paths = _sanitize_paths(raw_paths)
+
     paths_to_save = []
     for path_segments in raw_paths:
         full_path = []
@@ -359,6 +395,207 @@ def run_analysis(level):
 
     cv.imwrite(f"ressources/{level}/reach_danger_overlay.png", overlay_img)
     print("--- Analyse terminée avec succès ! ---")
+
+
+def load_sprites_with_mask(scale_factor):
+    """
+    Charge les sprites et crée un masque Alpha pour ignorer le fond transparent.
+    """
+    folder_path = os.path.join("ressources", "Sprite", "Mario")
+
+    sprites = []
+    valid_exts = ("*.png", "*.jpg", "*.bmp")
+    files = []
+    for ext in valid_exts:
+        files.extend(glob.glob(os.path.join(folder_path, ext)))
+
+    for filepath in files:
+
+        img_rgba = cv.imread(filepath, cv.IMREAD_UNCHANGED)
+        if img_rgba is None:
+            continue
+
+        if img_rgba.shape[2] == 4:
+            bgr = img_rgba[:, :, :3]
+            alpha = img_rgba[:, :, 3]
+        else:
+            bgr = img_rgba
+            alpha = None
+
+        sw = int(round(bgr.shape[1] * scale_factor))
+        sh = int(round(bgr.shape[0] * scale_factor))
+
+        resized_bgr = cv.resize(bgr, (sw, sh), interpolation=cv.INTER_NEAREST)
+        resized_alpha = (
+            cv.resize(alpha, (sw, sh), interpolation=cv.INTER_NEAREST)
+            if alpha is not None
+            else None
+        )
+
+        sprites.append(
+            {
+                "name": os.path.basename(filepath),
+                "image": resized_bgr,
+                "mask": resized_alpha,
+                "w_nes": bgr.shape[1],
+                "h_nes": bgr.shape[0],
+                "w_vid": sw,
+                "h_vid": sh,
+            }
+        )
+    return sprites
+
+
+def track_mario_fixed(level, video_path):
+    folder_path = os.path.join("ressources", level)
+
+    level_img_path = os.path.join(folder_path, "level.png")
+
+    level_bg = cv.imread(level_img_path, cv.IMREAD_COLOR)
+    if level_bg is None:
+        raise FileNotFoundError(f"Impossible de charger {level_img_path}")
+
+    level_h, level_w = level_bg.shape[:2]
+    cap = cv.VideoCapture(video_path)
+
+    if not cap.isOpened():
+        raise FileNotFoundError(f"Impossible d'ouvrir {video_path}")
+
+    fps = cap.get(cv.CAP_PROP_FPS)
+    vid_w = int(cap.get(cv.CAP_PROP_FRAME_WIDTH))
+    vid_h = int(cap.get(cv.CAP_PROP_FRAME_HEIGHT))
+
+    scale_factor = vid_h / float(level_h)
+    scaled_sprites = load_sprites_with_mask(scale_factor)
+
+    hud_height_nes = 32
+    hud_height_vid = int(hud_height_nes * scale_factor)
+
+    last_camera_x = 0
+    max_camera_speed = 8
+    search_window = 120
+
+    tracking_data = []
+    positions = []
+    frame_idx = 0
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        scaled_frame_w = int(round(vid_w / scale_factor))
+        frame_nes = cv.resize(
+            frame, (scaled_frame_w, level_h), interpolation=cv.INTER_NEAREST
+        )
+
+        frame_crop = frame_nes[hud_height_nes:, :]
+        level_crop = level_bg[hud_height_nes:, :]
+
+        if frame_idx == 0:
+
+            search_min_x = 0
+            search_max_x = min(500, level_w - scaled_frame_w)
+        else:
+
+            search_min_x = max(0, int(last_camera_x - 10))
+            search_max_x = min(
+                level_w - scaled_frame_w, int(last_camera_x + search_window)
+            )
+
+        level_search_region = level_crop[
+            :, search_min_x : search_max_x + scaled_frame_w
+        ]
+
+        res_cam = cv.matchTemplate(level_search_region, frame_crop, cv.TM_CCOEFF_NORMED)
+        _, max_val_cam, _, max_loc_cam = cv.minMaxLoc(res_cam)
+
+        camera_x = search_min_x + max_loc_cam[0]
+
+        if camera_x >= last_camera_x:
+            last_camera_x = camera_x
+
+        play_area_vid = frame[hud_height_vid:, :]
+        best_mario = {"val": -1.0, "x_vid": None, "y_vid": None, "sprite": None}
+
+        for sp in scaled_sprites:
+            if (
+                sp["h_vid"] > play_area_vid.shape[0]
+                or sp["w_vid"] > play_area_vid.shape[1]
+            ):
+                continue
+
+            if sp["mask"] is not None:
+                res_mario = cv.matchTemplate(
+                    play_area_vid, sp["image"], cv.TM_SQDIFF_NORMED, mask=sp["mask"]
+                )
+
+                min_val, _, min_loc, _ = cv.minMaxLoc(res_mario)
+                score = 1.0 - min_val
+                match_loc = min_loc
+            else:
+                res_mario = cv.matchTemplate(
+                    play_area_vid, sp["image"], cv.TM_CCOEFF_NORMED
+                )
+                _, score, _, match_loc = cv.minMaxLoc(res_mario)
+
+            if score > best_mario["val"]:
+                best_mario["val"] = score
+                best_mario["x_vid"] = match_loc[0] + sp["w_vid"] // 2
+                best_mario["y_vid"] = match_loc[1] + sp["h_vid"] // 2 + hud_height_vid
+                best_mario["sprite"] = sp["name"]
+
+        if best_mario["val"] >= 0.45 and best_mario["x_vid"] is not None:
+            mario_screen_x_nes = best_mario["x_vid"] / scale_factor
+            mario_screen_y_nes = best_mario["y_vid"] / scale_factor
+
+            world_x = round(last_camera_x + mario_screen_x_nes, 2)
+            world_y = round(mario_screen_y_nes, 2)
+            detected_sprite = best_mario["sprite"]
+            confidence = round(float(best_mario["val"]), 3)
+        else:
+            world_x, world_y = None, None
+            detected_sprite = None
+            confidence = (
+                round(float(best_mario["val"]), 3) if best_mario["val"] > 0 else 0.0
+            )
+
+        timestamp = round(frame_idx / fps, 3) if fps > 0 else 0.0
+
+        tracking_data.append(
+            {
+                "frame": frame_idx,
+                "timestamp_sec": timestamp,
+                "camera_x": last_camera_x,
+                "world_x": world_x,
+                "world_y": world_y,
+                "sprite": detected_sprite,
+                "confidence": confidence,
+            }
+        )
+
+        positions.append([world_x, world_y])
+
+        frame_idx += 1
+
+    cap.release()
+
+    return positions
+
+
+def analyze_video_folder(level):
+    video_folder = os.path.join("ressources", level, "Video")
+
+    files = glob.glob(os.path.join(video_folder, "*.mp4"))
+
+    positions = []
+    for file in files:
+        positions.append([track_mario_fixed(level, file)])
+
+    path_output = os.path.join("ressources", level, "paths.json")
+
+    with open(path_output, "w") as f:
+        json.dump(positions, f)
 
 
 class PathEditor:
@@ -407,6 +644,16 @@ class PathEditor:
         )
         self.run_btn.pack(side=tk.RIGHT, padx=10, pady=10)
 
+        self.video_btn = tk.Button(
+            control_frame,
+            text="🎬 Analyser les Vidéos",
+            command=self.save_and_analyze_videos,
+            bg="#FF9800",
+            fg="white",
+            font=("Arial", 10, "bold"),
+        )
+        self.video_btn.pack(side=tk.RIGHT, padx=10, pady=10)
+
         canvas_frame = tk.Frame(self.root)
         canvas_frame.pack(fill=tk.BOTH, expand=True)
 
@@ -439,10 +686,7 @@ class PathEditor:
                 with open(json_file_path, "r") as f:
 
                     raw_data = json.load(f)
-                    self.all_paths = [
-                        [[(pt[0], pt[1]) for pt in seg] for seg in path]
-                        for path in raw_data
-                    ]
+                    self.all_paths = _sanitize_paths(raw_data)
             except Exception as e:
                 print(f"Impossible de charger l'ancien json : {e}")
 
@@ -552,6 +796,38 @@ class PathEditor:
         finally:
             self.run_btn.config(
                 text="💾 Sauvegarder & Lancer l'analyse", bg="#4CAF50", state=tk.NORMAL
+            )
+
+    def save_and_analyze_videos(self):
+        paths_to_export = list(self.all_paths)
+        if any(self.current_segments):
+            paths_to_export.append(self.current_segments)
+
+        if not paths_to_export:
+            messagebox.showwarning("Attention", "Aucun point n'a été placé !")
+            return
+
+        json_file_path = f"ressources/{self.level_name}/paths.json"
+
+        try:
+            with open(json_file_path, "w") as f:
+                json.dump(paths_to_export, f, indent=4)
+
+            self.video_btn.config(
+                text="Analyse vidéos...", bg="orange", state=tk.DISABLED
+            )
+            self.root.update()
+
+            analyze_video_folder(self.level_name)
+
+            messagebox.showinfo(
+                "Succès", "L'analyse des vidéos a été effectuée avec succès !"
+            )
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Une erreur est survenue :\n{e}")
+        finally:
+            self.video_btn.config(
+                text="🎬 Sauvegarder & Analyser Vidéo", bg="#FF9800", state=tk.NORMAL
             )
 
 
