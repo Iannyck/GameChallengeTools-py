@@ -446,9 +446,16 @@ def load_sprites_with_mask(scale_factor):
     return sprites
 
 
-def track_mario_fixed(level, video_path):
-    folder_path = os.path.join("ressources", level)
+def track_mario_fixed(level, video_path, start_pos=None):
+    """
+    Lit une vidéo du jeu Super Mario Bros et retrace le chemin de Mario.
 
+    :param level: Nom du répertoire du niveau (ex: "Niveau_1_1")
+    :param video_path: Chemin vers le fichier vidéo MP4
+    :param start_pos: Tuple (x, y) ou valeur x seule de la position de départ
+                      approximative de Mario dans le niveau NES.
+    """
+    folder_path = os.path.join("ressources", level)
     level_img_path = os.path.join(folder_path, "level.png")
 
     level_bg = cv.imread(level_img_path, cv.IMREAD_COLOR)
@@ -471,7 +478,15 @@ def track_mario_fixed(level, video_path):
     hud_height_nes = 32
     hud_height_vid = int(hud_height_nes * scale_factor)
 
-    last_camera_x = 0
+    # Calculation de la position initiale estimée de la caméra si start_pos est fourni
+    if start_pos is not None:
+        start_x = start_pos[0] if isinstance(start_pos, (tuple, list)) else start_pos
+        # Sur NES, Mario apparaît généralement à ~40px du bord gauche de l'écran
+        est_cam_x = max(0, int(start_x - 40))
+        last_camera_x = est_cam_x
+    else:
+        last_camera_x = 0
+
     max_camera_speed = 8
     search_window = 120
 
@@ -493,11 +508,15 @@ def track_mario_fixed(level, video_path):
         level_crop = level_bg[hud_height_nes:, :]
 
         if frame_idx == 0:
-
-            search_min_x = 0
-            search_max_x = min(500, level_w - scaled_frame_w)
+            if start_pos is not None:
+                # Fenêtre de recherche ciblée autour de la caméra estimée
+                margin = 150
+                search_min_x = max(0, last_camera_x - margin)
+                search_max_x = min(level_w - scaled_frame_w, last_camera_x + margin)
+            else:
+                search_min_x = 0
+                search_max_x = min(500, level_w - scaled_frame_w)
         else:
-
             search_min_x = max(0, int(last_camera_x - 10))
             search_max_x = min(
                 level_w - scaled_frame_w, int(last_camera_x + search_window)
@@ -545,7 +564,7 @@ def track_mario_fixed(level, video_path):
                 best_mario["y_vid"] = match_loc[1] + sp["h_vid"] // 2 + hud_height_vid
                 best_mario["sprite"] = sp["name"]
 
-        if best_mario["val"] >= 0.45 and best_mario["x_vid"] is not None:
+        if best_mario["val"] >= 0.80 and best_mario["x_vid"] is not None:
             mario_screen_x_nes = best_mario["x_vid"] / scale_factor
             mario_screen_y_nes = best_mario["y_vid"] / scale_factor
 
@@ -583,14 +602,26 @@ def track_mario_fixed(level, video_path):
     return positions
 
 
-def analyze_video_folder(level):
+def analyze_video_folder(level, start_positions=None):
+    """
+    :param start_positions: Dictionnaire optionnel pour mapper chaque vidéo à un point de départ.
+                            Ex: {"run_1.mp4": (40, 192), "pipe_section.mp4": (1280, 192)}
+                            Ou une liste/tuple si vous voulez appliquer le même start_pos à toutes les vidéos.
+    """
     video_folder = os.path.join("ressources", level, "Video")
-
     files = glob.glob(os.path.join(video_folder, "*.mp4"))
 
     positions = []
     for file in files:
-        positions.append([track_mario_fixed(level, file)])
+        file_name = os.path.basename(file)
+        start_pos = None
+
+        if isinstance(start_positions, dict):
+            start_pos = start_positions.get(file_name)
+        elif isinstance(start_positions, (tuple, list, int, float)):
+            start_pos = start_positions
+
+        positions.append([track_mario_fixed(level, file, start_pos=start_pos)])
 
     path_output = os.path.join("ressources", level, "paths.json")
 
@@ -818,7 +849,12 @@ class PathEditor:
             )
             self.root.update()
 
-            analyze_video_folder(self.level_name)
+            starts = {
+                "Mario SR 1.mp4": (42, 185),
+                "Mario SR 2.mp4": (3390, 185),
+                "Mario SR 3.mp4": (2620, 185),
+            }
+            analyze_video_folder(self.level_name, starts)
 
             messagebox.showinfo(
                 "Succès", "L'analyse des vidéos a été effectuée avec succès !"
