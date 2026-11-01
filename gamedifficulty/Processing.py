@@ -315,12 +315,12 @@ def CalculateDifficulty(pheromones: cv.Mat[cv.CV_8U], reach: cv.Mat[cv.CV_8U], w
         # we then use np.sum to count the number (true is one and false is zero)
         count = np.sum(np.logical_and(reachable, dangerous))
 
-        # edge case
-        if np.isnan(float(np.sum(reachable))):
+        reachable_count = np.sum(reachable)
+        if reachable_count == 0:
             result += [0]
             continue
 
-        value = count / float(np.sum(reachable))
+        value = count / float(reachable_count)
         result += [value]
 
     return result

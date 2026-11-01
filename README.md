@@ -15,3 +15,14 @@ to each source image, with the source filename and extension as a prefix.
 For compatibility with the original repository layout, if `ressources/levels/`
 does not exist, the script recursively processes files named `level.png` under
 `ressources/`.
+
+The analysis requires exactly one source image inside a folder named
+`Niveau_1_1`. It uses that image as the reference and writes
+`difficulty_area_comparison.csv` at the root of `ressources/levels/`. The CSV
+contains the image path, its parent folder in the `algorithm` column, the
+normalized trapezoidal area under the reference and comparison curves, their
+signed and absolute area difference, and the integral of the absolute
+difference between the two profiles. It uses semicolons as column delimiters
+and commas as decimal separators for compatibility with French Excel settings.
+Curves are compared over normalized level progress, so their widths do not
+affect the area values.
