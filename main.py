@@ -16,7 +16,8 @@ RESOURCE_DIRECTORY = Path("ressources")
 LEVELS_DIRECTORY = RESOURCE_DIRECTORY / "levels"
 SPRITE_DIRECTORY = RESOURCE_DIRECTORY / "Sprite"
 IMAGE_EXTENSIONS = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
-WINDOW_SIZES = [320]
+WINDOW_SIZES = [256]
+PEAK_MIN_PROMINENCE = 0.05
 
 _OUTPUT_SUFFIXES = (
     "_staticDanger",
@@ -39,7 +40,14 @@ AREA_COMPARISON_COLUMNS = (
     "area_delta",
     "absolute_area_delta",
     "area_between_curves",
+    "difficulty_peak_count",
+    "mean_peak_spacing_px",
+    "peaks_per_1000px",
+    "reference_peak_count",
+    "reference_mean_peak_spacing_px",
+    "reference_peaks_per_1000px",
 )
+AreaComparisonValue = str | int | float | None
 
 
 def discover_level_images() -> list[Path]:
@@ -234,11 +242,83 @@ def calculate_curve_areas(
     return curve_area, reference_area, area_between
 
 
+def calculate_curve_pacing(
+    curve: np.ndarray,
+    window_size: int,
+    min_prominence: float = PEAK_MIN_PROMINENCE,
+) -> dict[str, int | float | None]:
+    values = np.asarray(curve, dtype=np.float64)
+    if values.ndim != 1 or len(values) < 3:
+        raise ValueError("Difficulty curve must contain at least three points.")
+    if not np.isfinite(values).all():
+        raise ValueError("Difficulty curve contains non-finite values.")
+    if window_size < 1:
+        raise ValueError("Window size must be positive.")
+    if min_prominence < 0:
+        raise ValueError("Minimum peak prominence cannot be negative.")
+
+    tolerance = 1e-12
+    candidates = []
+    index = 1
+    while index < len(values) - 1:
+        plateau_end = index
+        while (
+            plateau_end + 1 < len(values) - 1
+            and abs(values[plateau_end + 1] - values[index]) <= tolerance
+        ):
+            plateau_end += 1
+
+        if (
+            values[index] > values[index - 1] + tolerance
+            and values[plateau_end] > values[plateau_end + 1] + tolerance
+        ):
+            peak_index = (index + plateau_end) // 2
+            peak_value = values[peak_index]
+
+            higher_left = np.flatnonzero(values[:peak_index] > peak_value + tolerance)
+            higher_right = np.flatnonzero(
+                values[peak_index + 1 :] > peak_value + tolerance
+            )
+            left_bound = int(higher_left[-1] + 1) if len(higher_left) else 0
+            right_bound = (
+                peak_index + 1 + int(higher_right[0])
+                if len(higher_right)
+                else len(values) - 1
+            )
+            prominence = peak_value - max(
+                float(np.min(values[left_bound : peak_index + 1])),
+                float(np.min(values[peak_index : right_bound + 1])),
+            )
+            if prominence >= min_prominence:
+                candidates.append((peak_index, prominence, peak_value))
+
+        index = plateau_end + 1
+
+    selected_peaks = []
+    for candidate in sorted(
+        candidates, key=lambda peak: (peak[1], peak[2]), reverse=True
+    ):
+        if all(
+            abs(candidate[0] - selected[0]) >= window_size
+            for selected in selected_peaks
+        ):
+            selected_peaks.append(candidate)
+
+    peak_indices = sorted(peak[0] for peak in selected_peaks)
+    spacings = np.diff(peak_indices)
+    level_width = len(values) + window_size
+    return {
+        "difficulty_peak_count": len(peak_indices),
+        "mean_peak_spacing_px": (float(np.mean(spacings)) if len(spacings) else None),
+        "peaks_per_1000px": len(peak_indices) * 1000.0 / level_width,
+    }
+
+
 def build_area_comparison_rows(
     image_path: Path,
     curves: dict[int, np.ndarray],
     reference_curves: dict[int, np.ndarray],
-) -> list[dict[str, str | int | float]]:
+) -> list[dict[str, AreaComparisonValue]]:
     root = LEVELS_DIRECTORY if LEVELS_DIRECTORY.is_dir() else RESOURCE_DIRECTORY
     image_name = image_path.relative_to(root).as_posix()
     rows = []
@@ -249,6 +329,8 @@ def build_area_comparison_rows(
         curve_area, reference_area, area_between = calculate_curve_areas(
             curve, reference_curve
         )
+        curve_pacing = calculate_curve_pacing(curve, window_size)
+        reference_pacing = calculate_curve_pacing(reference_curve, window_size)
         area_delta = curve_area - reference_area
         rows.append(
             {
@@ -259,6 +341,11 @@ def build_area_comparison_rows(
                 "area_delta": area_delta,
                 "absolute_area_delta": abs(area_delta),
                 "area_between_curves": area_between,
+                **curve_pacing,
+                **{
+                    f"reference_{key.removeprefix('difficulty_')}": value
+                    for key, value in reference_pacing.items()
+                },
             }
         )
     return rows
@@ -266,7 +353,7 @@ def build_area_comparison_rows(
 
 def process_and_compare_image(
     image_path: Path,
-) -> tuple[str, list[dict[str, str | int | float]]]:
+) -> tuple[str, list[dict[str, AreaComparisonValue]]]:
     if _REFERENCE_CURVES is None or _REFERENCE_IMAGE_PATH is None:
         raise RuntimeError("Reference difficulty curves were not initialized.")
 
@@ -276,7 +363,7 @@ def process_and_compare_image(
     )
 
 
-def write_area_comparison(rows: list[dict[str, str | int | float]]) -> Path:
+def write_area_comparison(rows: list[dict[str, AreaComparisonValue]]) -> Path:
     output_root = LEVELS_DIRECTORY if LEVELS_DIRECTORY.is_dir() else RESOURCE_DIRECTORY
     output_path = output_root / "difficulty_area_comparison.csv"
     rows.sort(key=lambda row: (str(row["algorithm"]), str(row["image"])))
@@ -288,9 +375,11 @@ def write_area_comparison(rows: list[dict[str, str | int | float]]) -> Path:
         for row in rows:
             writer.writerow(
                 {
-                    key: format(value, ".17g").replace(".", ",")
-                    if isinstance(value, float)
-                    else value
+                    key: (
+                        format(value, ".17g").replace(".", ",")
+                        if isinstance(value, float)
+                        else value
+                    )
                     for key, value in row.items()
                 }
             )

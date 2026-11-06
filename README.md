@@ -25,4 +25,9 @@ signed and absolute area difference, and the integral of the absolute
 difference between the two profiles. It uses semicolons as column delimiters
 and commas as decimal separators for compatibility with French Excel settings.
 Curves are compared over normalized level progress, so their widths do not
-affect the area values.
+affect the area values. Pacing columns count local difficulty peaks with a
+minimum prominence of `0.05`; peaks less than one difficulty-window apart are
+merged to avoid counting the same spike multiple times. Pacing is reported as
+the mean distance between peaks in pixels and the number of peaks per 1,000
+level pixels, both for the image and the `Niveau_1_1` reference. Mean spacing
+is left empty when there are fewer than two peaks.
